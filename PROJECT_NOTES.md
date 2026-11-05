@@ -5,7 +5,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 ## Current Status
 
 - 2026-11-05: one-button redesign compiles in CI (run 42090266929, app + LecturesWidgets extension). First TestFlight build **7** uploaded (run 42094571872).
-- Reviewer session "Lectures - Reviewer" (session_01Xw2SgWNtxCJLsCGhVGbHZX, runs on the lifeos environment because its setup script cds into lifeos) reaches Supabase; its PR #1 subscription needs push access on cmoney0/lectures, which Colby must approve in that session. **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
+- **Reviewer = the Lectures build session `session_01Xw2SgUJ4SD5jfNotxVqsv8`, subscribed to PR #1** (2026-11-05). Dedicated child sessions were tried and archived: auto mode denies them `add_repo` with push, which `subscribe_pr_activity` needs, so they never woke. A new reviewer session needs Colby to add an allow rule for `add_repo` (or start it himself with the lectures repo attached). **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
 
 ## Architecture
 
@@ -107,3 +107,9 @@ Changes since then: none.
 
 ### Tests/Verification
 - Run 42112162040 (build 13, d2ab26a): archived, signed, uploaded. First build with the iPad target - Colby needs to install it on the iPad from TestFlight too.
+
+## 2026-11-05 - Reviewer moved into the build session
+
+### What Changed
+- The 2:05 PM test lecture sat at "Waiting for Claude": Colby had asked the old reviewer for a sample review ("Advancements in AI (sample review)"), then tapped Redo review so the app would refetch it, but that reviewer was never subscribed (auto mode denied it push access), so nothing woke. Restored it to `ready` (the sample review was still stored).
+- This build session subscribed to lectures PR #1 and is now the reviewer (REVIEWER.md updated); the blocked child reviewer was archived.
