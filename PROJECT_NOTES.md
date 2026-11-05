@@ -4,7 +4,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Current Status
 
-- v1 app built 2026-11-05; compiles in CI (run 42074963431, BUILD SUCCEEDED, no warnings in app code; secrets detected). **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
+- 2026-11-05: one-button redesign compiles in CI (run 42090266929, app + LecturesWidgets extension). **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`; CI registers `com.cmoney0.lectures.widgets` itself).
+- Reviewer session "Lectures - Reviewer" (session_01Xw2SgWNtxCJLsCGhVGbHZX, runs on the lifeos environment because its setup script cds into lifeos) reaches Supabase; its PR #1 subscription needs push access on cmoney0/lectures, which Colby must approve in that session. **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
 
 ## Architecture
 
@@ -18,6 +19,15 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 - **Server** (in `cmoney0/lifeos`): `api/_lectures.js`, routed by `widget-data.js` (`/api/lectures`); Supabase `public.lectures` (RLS on, service role only). School Claude project reads `GET /api/canvas/lectures?days=&course=&q=` and `GET /api/canvas/lecture/:id` with the existing `CLAUDE_READ_KEY`.
 - **CI** `.github/workflows/ios.yml`: push to main = simulator compile; manual run with TestFlight = sign + upload (ONLY with Colby's approval). `ci/signing.py` + `ci/dist-cert.enc` copied from LifeOS (same ASC key -> same certificate).
 
+## Flow (2026-11-05 redesign)
+
+1. **Record** - Home button, the "Record lecture" Control Center / Lock Screen control, Action Button or Siri (`StartLectureIntent`, opens the app). No class picker and no calendar (Colby): Claude names the class from the transcript.
+2. **While recording** - live transcript with Copy; Live Activity (Lock Screen + Dynamic Island) with Pause/Resume and Stop & send. Audio in 60 s chunks; transcript saved every ~15 s.
+3. **Stop** - in the app: review-options sheet (length quick/standard/deep, type notes/exam/flashcards/summary, focus), auto-sends after 10 s with the last choices; from the Live Activity: sends at once with the saved defaults.
+4. **Send** - `POST /api/lectures` with `requestReview` -> LifeOS rings the doorbell (comment on PR #1) -> the Reviewer session writes `review` JSON into `public.lectures` (REVIEWER.md) -> the app polls `GET /api/lectures?ids=` every 15 s while open.
+5. **Home** - In progress cards with the 4 steps (Recorded / Transcribed / Sent / Review); finished lectures grouped by class. Detail: Review (summary, exam flags with tap-to-hear timestamps, sections, key terms), Cards (flip), Quiz (score + explanations), Transcript; menu: Export PDF, share to Claude app, redo review, continue recording, redo transcript.
+6. **Crash** - a lecture still `recording` at launch becomes `interrupted`: Continue recording (appends, timestamps offset) or Finish & send. Orphaned Live Activities are ended at launch.
+
 ## Roadmap (Colby, 2026-11-05)
 
 1. **External transcription option**: a per-lecture "Transcribe with cloud" choice for hard-to-hear classes, from the saved audio. The `engine` field already exists on both sides.
@@ -25,8 +35,10 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Changes since the last TestFlight build (none yet):
-- v1: record + live on-device transcript, lock-screen recording, course picker from Canvas, playback with tap-to-seek timestamps, Redo from audio, share/copy to Claude, auto-send to LifeOS.
+Changes since the last TestFlight build (none yet - first build):
+- One-button recording with live on-device transcript + Copy; Live Activity with Pause / Stop & send; Control Center / Action Button / Siri start.
+- Review options after Stop -> Claude Reviewer session -> interactive review (notes, flashcards, quiz, PDF) filed by class.
+- Home progress steps; crash-safe chunked audio with Continue recording.
 
 ## 2026-11-05 - v1 app
 
@@ -40,3 +52,16 @@ Changes since the last TestFlight build (none yet):
 ### Tests/Verification
 - 3fb089c: iOS workflow run 1 (42074963431) generated the project and compiled for the simulator - BUILD SUCCEEDED. Server routes live: `/api/lectures` answers 401 without a key (LifeOS PR #636, dc4fc98).
 - Not yet run on a real phone (needs the first TestFlight build).
+
+## 2026-11-05 - One-button redesign + Claude review pipeline
+
+### What Changed
+- Removed the class picker; added the Live Activity extension (`LecturesWidgets`: Live Activity + Record control), shared intents (`Lectures/Shared/LectureActivity.swift`), review options sheet, progress home, interactive review screens + PDF export, chunked audio + resume, polling for reviews. `REVIEWER.md` + PR #1 doorbell.
+### Why
+- Colby: one button, no class selection, choose review length/type, Claude (on his subscription, no API) reviews and sends it back sorted by class, see each step's progress, resume after a crash.
+### Design/Workflow Notes
+- Intents compile into both targets; bodies only under `LECTURES_APP` (Live Activity buttons and open-app intents run in the app process).
+- `ci/signing.py` now signs `Lectures` + `LecturesWidgets` (bundle registered by the API if missing).
+- The Reviewer must run in the lifeos environment (its setup script `cd`s into lifeos); it attaches lectures with add_repo.
+### Tests/Verification
+- 6eb14dc: iOS run 42090266929 BUILD SUCCEEDED (app + extension). Server: LifeOS PR #642. Reviewer reached Supabase (0 lectures). End-to-end doorbell test pending the Reviewer's push access.

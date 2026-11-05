@@ -11,5 +11,7 @@ Read `PROJECT_NOTES.md` before meaningful work and add a dated entry after every
 - Land finished work on `main` (standing permission; on a pinned web-session branch push it, open a PR to `main`, merge it).
 - There is no Mac: the iOS workflow compiles on every push to `main`. Check its result after pushing Swift changes.
 - Target Colby's iPhone 18 Pro Max (440 x 956 pt). Style = LifeOS Claude theme: warm gray surfaces, Claude-orange accent `#C96442`, Manrope (`Lectures/Views/Theme.swift`).
-- Server side lives in LifeOS: `api/_lectures.js` (upload, `/api/lectures`, widget key) and `api/canvas-proxy.js` routes `lectures` + `lecture/:id` (School project, `CLAUDE_READ_KEY`). Supabase table `public.lectures`.
+- Server side lives in LifeOS: `api/_lectures.js` (upload + review request + doorbell, `/api/lectures`, widget key) and `api/canvas-proxy.js` routes `lectures` + `lecture/:id` (School project, `CLAUDE_READ_KEY`). Supabase table `public.lectures`.
+- **PR #1 "Lectures inbox" is a doorbell: NEVER merge or close it.** LifeOS comments on it per review request; the "Lectures - Reviewer" session (subscribed) follows `REVIEWER.md`.
+- No class picker or calendar in the app (Colby): Claude names the class from the transcript.
 - Signing: `ci/signing.py` is a copy of LifeOS's. Profiles are named `Lectures CI <target>` - never `LifeOS CI ...` (LifeOS's signing deletes unknown `LifeOS CI` profiles).
