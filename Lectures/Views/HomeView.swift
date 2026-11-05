@@ -66,7 +66,7 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .refreshable {
             await Pipeline.sendPending()
-            await Pipeline.refreshReviews()
+            await Pipeline.syncFromLifeOS()
         }
         .confirmationDialog("Delete this lecture? It is removed from your phone and LifeOS.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), presenting: pendingDelete) { lecture in
             Button("Delete lecture", role: .destructive) { delete(lecture) }

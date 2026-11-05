@@ -39,6 +39,7 @@ Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this
 
 Changes since then:
 - Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
+- **iPad + in-depth study guide:** the app runs on iPad (all orientations), pulls every lecture from LifeOS (recorded on the iPhone), and a new review type "In-depth guide (iPad)" adds a Guide tab: textbook-style reading per section with the professor's Canvas slide pages as figures (tap to zoom), fill-in-the-blank checks typed inline, and problems with a Pencil scratchpad + step-by-step solutions. PDF export includes the guide with figures and an answer key.
 - Lecture rows on Home show the time recorded (e.g. Thu, Nov 5, 2:05 PM), so unsorted lectures can be told apart.
 - Delete: lecture menu > Delete (or long-press a lecture on Home) -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
 
@@ -90,3 +91,13 @@ Changes since then:
 - `Pipeline.delete` (audio, chunks, local record, LifeOS row) and `Pipeline.deleteAudio`; Delete in the lecture menu with a confirmation; Home long-press offers the same two choices. Deleting from the detail screen waits until it has closed (SwiftData must not render a deleted model).
 ### Tests/Verification
 - iOS compile on push (see run).
+
+## 2026-11-05 - iPad + in-depth study guides with slide figures
+
+### What Changed
+- Universal app (`TARGETED_DEVICE_FAMILY 1,2`; iPad all orientations; `UIRequiresFullScreen` removed again - iPad orientations satisfy validation).
+- `Pipeline.syncFromLifeOS` (launch, foreground, pull-to-refresh): `GET /api/lectures?full=1` creates local copies of lectures from other devices (no audio) and updates reviews; removes audio-less copies that disappeared from LifeOS (deleted elsewhere). Never touches a lecture still recording/sending.
+- New review type `guide`. `LectureReview.guide` (intro, sections{read, figures{fileId,page,caption}, fillIns with {{blanks}}}, problems{prompt, steps, answer}, sources). `GuideView`: readable width, `SlideFigure` renders the Canvas PDF page on device (PDFKit; deck downloaded once via `GET /api/lectures?file=<id>` -> 302 to Canvas, cached in Caches/Slides), `FillInBlock` (FlowLayout words + inline TextFields, Check / Show answers / score), `ProblemView` (PencilKit scratchpad, reveal steps one at a time, answer). iPad opens the Guide tab first.
+- `REVIEWER.md`: guide job - reads slides through the LifeOS Canvas proxy with an `x-api-key` network credential (request_credential, Colby pastes the School project key once), picks real diagram pages by rendering and looking at them, PDFs only.
+### Tests/Verification
+- iOS compile on push (see run). Not yet on a device.

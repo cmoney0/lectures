@@ -14,7 +14,8 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
-    TARGETED_DEVICE_FAMILY: "1"
+    # iPhone records; iPad reads the in-depth study guides (lectures sync down from LifeOS)
+    TARGETED_DEVICE_FAMILY: "1,2"
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     # Upload runs pass PROFILE_Lectures (ci/signing.py); empty for simulator builds.
     PROVISIONING_PROFILE_SPECIFIER: "$(PROFILE_$(TARGET_NAME))"
@@ -38,8 +39,11 @@ targets:
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        # portrait-only iPhone app: App Store validation requires this (else all 4 orientations)
-        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         # recording timer + Pause / Stop on the Lock Screen and Dynamic Island

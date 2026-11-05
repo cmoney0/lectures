@@ -27,8 +27,8 @@ final class Lecture {
     var reviewJSON: String?
     var reviewError: String?
 
-    init(title: String, recordedAt: Date = .now) {
-        id = UUID()
+    init(title: String, recordedAt: Date = .now, id: UUID = UUID()) {
+        self.id = id
         self.title = title
         courseName = ""
         self.recordedAt = recordedAt
@@ -200,6 +200,7 @@ struct ReviewOptions: Codable, Equatable {
         ("exam", "Exam prep", "graduationcap"),
         ("flashcards", "Flashcards + quiz", "rectangle.on.rectangle"),
         ("summary", "Summary", "text.alignleft"),
+        ("guide", "In-depth guide (iPad)", "book"),
     ]
 }
 
@@ -212,8 +213,28 @@ struct LectureReview: Codable {
     struct Card: Codable, Hashable { var front: String?; var back: String? }
     struct Question: Codable, Hashable { var question: String?; var choices: [String]?; var answer: Int?; var explanation: String? }
 
+    /// The in-depth iPad study guide (REVIEWER.md, `guide` type).
+    struct Guide: Codable, Hashable {
+        struct Figure: Codable, Hashable { var fileId: String?; var page: Int?; var caption: String? }
+        struct Section: Codable, Hashable {
+            var heading: String?
+            var read: [String]?
+            var figures: [Figure]?
+            /// Sentences with blanks marked {{answer}}.
+            var fillIns: [String]?
+        }
+        struct Problem: Codable, Hashable { var prompt: String?; var steps: [String]?; var answer: String? }
+        struct Source: Codable, Hashable { var fileId: String?; var name: String? }
+
+        var intro: String?
+        var sections: [Section]?
+        var problems: [Problem]?
+        var sources: [Source]?
+    }
+
     var title: String?
     var course: String?
+    var guide: Guide?
     var summary: String?
     var sections: [Section]?
     var keyTerms: [Term]?

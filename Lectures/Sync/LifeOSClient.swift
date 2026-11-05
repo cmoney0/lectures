@@ -81,8 +81,14 @@ final class LifeOSClient {
         var reviewStatus: String?
         var reviewError: String?
         var review: LectureReview?
+        // only in the full sync (`full=1`)
+        var title: String?
+        var recordedAt: String?
+        var durationSec: Double?
+        var transcript: String?
+        var engine: String?
 
-        enum CodingKeys: String, CodingKey { case id, course, courseId, reviewStatus, reviewError, review }
+        enum CodingKeys: String, CodingKey { case id, course, courseId, reviewStatus, reviewError, review, title, recordedAt, durationSec, transcript, engine }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -93,6 +99,11 @@ final class LifeOSClient {
             reviewError = try? c.decodeIfPresent(String.self, forKey: .reviewError)
             // a slightly off review must never break the whole sync
             review = try? c.decodeIfPresent(LectureReview.self, forKey: .review)
+            title = try? c.decodeIfPresent(String.self, forKey: .title)
+            recordedAt = try? c.decodeIfPresent(String.self, forKey: .recordedAt)
+            durationSec = try? c.decodeIfPresent(Double.self, forKey: .durationSec)
+            transcript = try? c.decodeIfPresent(String.self, forKey: .transcript)
+            engine = try? c.decodeIfPresent(String.self, forKey: .engine)
         }
     }
 
@@ -103,6 +114,34 @@ final class LifeOSClient {
         guard !ids.isEmpty else { return [] }
         let data = try await call("GET", query: [URLQueryItem(name: "ids", value: ids.map(\.uuidString).joined(separator: ","))])
         return try JSONDecoder().decode(ListBody.self, from: data).lectures
+    }
+
+    /// Every recent lecture with transcript + review: how the iPad gets the
+    /// lectures recorded on the iPhone.
+    func allLectures() async throws -> [ServerLecture] {
+        let data = try await call("GET", query: [URLQueryItem(name: "full", value: "1")])
+        return try JSONDecoder().decode(ListBody.self, from: data).lectures
+    }
+
+    /// A Canvas slide deck (PDF) for study-guide figures, cached on the device.
+    func slideDeck(_ fileId: String) async throws -> URL {
+        let digits = fileId.filter(\.isNumber)
+        let dir = URL.cachesDirectory.appendingPathComponent("Slides", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let local = dir.appendingPathComponent("\(digits).pdf")
+        if FileManager.default.fileExists(atPath: local.path) { return local }
+        guard let key = Keychain.read() else { throw LifeOSError.notConnected }
+        var url = URLComponents(url: Self.base.appendingPathComponent("api/lectures"), resolvingAgainstBaseURL: false)!
+        url.queryItems = [URLQueryItem(name: "file", value: digits)]
+        var req = URLRequest(url: url.url!)
+        req.setValue(key, forHTTPHeaderField: "x-lifeos-widget")
+        req.timeoutInterval = 120
+        // LifeOS answers with a redirect to a short-lived Canvas download link
+        let (temp, response) = try await URLSession.shared.download(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw LifeOSError.server("Couldn't load the slides.") }
+        try? FileManager.default.removeItem(at: local)
+        try FileManager.default.moveItem(at: temp, to: local)
+        return local
     }
 
     func remove(_ id: UUID) async throws {

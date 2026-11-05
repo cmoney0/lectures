@@ -24,6 +24,7 @@ struct LectureDetailView: View {
                 if lecture.stage != .done { PipelineCard(lecture: lecture) }
                 if review != nil {
                     Picker("View", selection: $tab) {
+                        if review?.guide != nil { Text("Guide").tag(4) }
                         Text("Review").tag(0)
                         Text("Cards").tag(1)
                         Text("Quiz").tag(2)
@@ -32,6 +33,8 @@ struct LectureDetailView: View {
                     .pickerStyle(.segmented)
                 }
                 switch review == nil ? 3 : tab {
+                case 4:
+                    if let guide = review?.guide { GuideView(guide: guide) }
                 case 0: ReviewNotesView(review: review!) { stamp in seek(stamp) }
                 case 1: FlashcardsView(cards: review?.flashcards ?? [])
                 case 2: QuizView(questions: review?.quiz ?? [])
@@ -44,6 +47,10 @@ struct LectureDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { menu }
+        }
+        .onAppear {
+            // the iPad opens straight into the in-depth guide when there is one
+            if review?.guide != nil && UIDevice.current.userInterfaceIdiom == .pad { tab = 4 }
         }
         .onDisappear { player.stop() }
         .confirmationDialog("Delete this lecture? It is removed from your phone and LifeOS.", isPresented: $confirmDelete, titleVisibility: .visible) {

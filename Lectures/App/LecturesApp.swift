@@ -48,11 +48,12 @@ struct RootView: View {
             await LectureRecorder.endOrphanedActivities()
             Pipeline.recoverInterrupted(except: recorder.current?.id)
             await Pipeline.sendPending()
+            await Pipeline.syncFromLifeOS()
             await Pipeline.pollLoop()
         }
         .onChange(of: phase) { _, now in
             guard now == .active else { return }
-            Task { await Pipeline.sendPending(); await Pipeline.refreshReviews() }
+            Task { await Pipeline.sendPending(); await Pipeline.syncFromLifeOS() }
         }
     }
 }
@@ -146,16 +147,60 @@ enum Pipeline {
         guard !waiting.isEmpty, let rows = try? await LifeOSClient.shared.reviews(for: waiting.map(\.id)) else { return }
         for row in rows {
             guard let lecture = waiting.first(where: { $0.id.uuidString.lowercased() == row.id.lowercased() }) else { continue }
-            if let course = row.course, !course.isEmpty { lecture.courseName = course }
-            if let cid = row.courseId, !cid.isEmpty { lecture.courseId = cid }
-            if let status = row.reviewStatus.flatMap(ReviewStatus.init(rawValue:)) { lecture.reviewStatus = status }
-            lecture.reviewError = row.reviewError
-            if let review = row.review, let data = try? JSONEncoder().encode(review) {
-                lecture.reviewJSON = String(data: data, encoding: .utf8)
-                if lecture.courseName.isEmpty, let c = review.course, !c.isEmpty { lecture.courseName = c }
-            }
+            apply(row, to: lecture)
         }
         try? context.save()
+    }
+
+    /// Pulls every recent lecture from LifeOS: the iPad gets what the iPhone
+    /// recorded, and every device gets finished reviews and guides.
+    static func syncFromLifeOS() async {
+        guard LifeOSClient.shared.isConnected, let rows = try? await LifeOSClient.shared.allLectures() else { return }
+        let all = (try? context.fetch(FetchDescriptor<Lecture>())) ?? []
+        var byId: [String: Lecture] = [:]
+        for l in all { byId[l.id.uuidString.lowercased()] = l }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        var seen = Set<String>()
+        for row in rows {
+            let key = row.id.lowercased()
+            seen.insert(key)
+            let lecture: Lecture
+            if let local = byId[key] {
+                lecture = local
+                // never touch a lecture this device is still recording or sending
+                guard local.status == .ready, !local.reviewPending else { continue }
+            } else {
+                guard let uuid = UUID(uuidString: row.id) else { continue }
+                let date = row.recordedAt.flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) } ?? .now
+                lecture = Lecture(title: row.title ?? "Lecture", recordedAt: date, id: uuid)
+                lecture.status = .ready
+                lecture.uploadedAt = .now
+                context.insert(lecture)
+            }
+            if let t = row.transcript, !lecture.hasAudio || lecture.transcript.isEmpty { lecture.transcript = t }
+            if let d = row.durationSec, d > 0, !lecture.hasAudio { lecture.durationSec = d }
+            apply(row, to: lecture)
+        }
+        // copies of lectures deleted on another device (only ones without audio here)
+        let window = Date().addingTimeInterval(-110 * 86_400)
+        for l in all where !seen.contains(l.id.uuidString.lowercased()) && !l.hasAudio
+            && l.uploadedAt != nil && l.status == .ready && !l.reviewPending && l.recordedAt > window {
+            context.delete(l)
+        }
+        try? context.save()
+    }
+
+    private static func apply(_ row: LifeOSClient.ServerLecture, to lecture: Lecture) {
+        if let course = row.course, !course.isEmpty { lecture.courseName = course }
+        if let cid = row.courseId, !cid.isEmpty { lecture.courseId = cid }
+        if let status = row.reviewStatus.flatMap(ReviewStatus.init(rawValue:)) { lecture.reviewStatus = status }
+        lecture.reviewError = row.reviewError
+        if let review = row.review, let data = try? JSONEncoder().encode(review) {
+            lecture.reviewJSON = String(data: data, encoding: .utf8)
+            if lecture.courseName.isEmpty, let c = review.course, !c.isEmpty { lecture.courseName = c }
+        }
     }
 
     /// While the app is open: check every 15 s whenever something is waiting on Claude.

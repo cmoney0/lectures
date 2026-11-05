@@ -201,7 +201,58 @@ enum ReviewPDF {
         if let f = review.followUps, !f.isEmpty {
             h += "<h2>Follow up</h2><ul>" + f.map { "<li>\(esc($0))</li>" }.joined() + "</ul>"
         }
+        if let guide = review.guide { h += guideHTML(guide) }
         return h + "</body></html>"
+    }
+
+    /// The study guide: reading + slide figures + fill-ins as blanks, problems,
+    /// then an answer key (blanks + worked solutions) at the end.
+    @MainActor
+    private static func guideHTML(_ guide: LectureReview.Guide) -> String {
+        var h = "<h1 style=\"page-break-before: always\">Study guide</h1>"
+        if let intro = guide.intro { h += "<p>\(esc(intro))</p>" }
+        var key: [String] = []
+        for (i, section) in (guide.sections ?? []).enumerated() {
+            h += "<h2>\(i + 1). \(esc(section.heading))</h2>"
+            for para in section.read ?? [] { h += "<p>\(esc(para))</p>" }
+            for fig in section.figures ?? [] {
+                if let id = fig.fileId, let page = fig.page, let img = SlideRenderer.cachedImage(fileId: id, page: page),
+                   let data = img.jpegData(compressionQuality: 0.8) {
+                    h += "<div><img style=\"width:100%\" src=\"data:image/jpeg;base64,\(data.base64EncodedString())\"/></div>"
+                }
+                if let c = fig.caption { h += "<div class=\"meta\">\(esc(c))</div>" }
+            }
+            let blanks = section.fillIns ?? []
+            if !blanks.isEmpty {
+                h += "<div class=\"flag\"><b>Check yourself</b><ol>"
+                for sentence in blanks {
+                    var line = "", answers: [String] = []
+                    for piece in Cloze.parse(sentence) {
+                        switch piece {
+                        case .text(let w): line += esc(w) + " "
+                        case .blank(let a): line += "__________ "; answers.append(a)
+                        }
+                    }
+                    h += "<li>\(line)</li>"
+                    key.append(answers.joined(separator: ", "))
+                }
+                h += "</ol></div>"
+            }
+        }
+        let problems = guide.problems ?? []
+        if !problems.isEmpty {
+            h += "<h2>Do the work</h2><ol>" + problems.map { "<li>\(esc($0.prompt))<br/><br/><br/><br/></li>" }.joined() + "</ol>"
+        }
+        h += "<h2 style=\"page-break-before: always\">Answer key</h2>"
+        if !key.isEmpty { h += "<b>Fill-ins</b><ol>" + key.map { "<li>\(esc($0))</li>" }.joined() + "</ol>" }
+        if !problems.isEmpty {
+            h += "<b>Worked solutions</b><ol>"
+            for p in problems {
+                h += "<li><ol>" + (p.steps ?? []).map { "<li>\(esc($0))</li>" }.joined() + "</ol><b>Answer:</b> \(esc(p.answer))</li>"
+            }
+            h += "</ol>"
+        }
+        return h
     }
 
     @MainActor
