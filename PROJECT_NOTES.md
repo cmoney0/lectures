@@ -41,7 +41,7 @@ Changes since then:
 - Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
 - **iPad + in-depth study guide:** the app runs on iPad (all orientations), pulls every lecture from LifeOS (recorded on the iPhone), and a new review type "In-depth guide (iPad)" adds a Guide tab: textbook-style reading per section with the professor's Canvas slide pages as figures (tap to zoom), fill-in-the-blank checks typed inline, and problems with a Pencil scratchpad + step-by-step solutions. PDF export includes the guide with figures and an answer key.
 - Lecture rows on Home show the time recorded (e.g. Thu, Nov 5, 2:05 PM), so unsorted lectures can be told apart.
-- Delete: lecture menu > Delete (or long-press a lecture on Home) -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
+- Delete: swipe a lecture left on Home (native List swipe), lecture menu > Delete, or long-press -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
 
 ## 2026-11-05 - v1 app
 
@@ -101,3 +101,8 @@ Changes since then:
 - `REVIEWER.md`: guide job - reads slides through the LifeOS Canvas proxy with an `x-api-key` network credential (request_credential, Colby pastes the School project key once), picks real diagram pages by rendering and looking at them, PDFs only.
 ### Tests/Verification
 - iOS compile on push (see run). Not yet on a device.
+
+## 2026-11-05 - Swipe to delete on Home
+
+### What Changed
+- Home is now a `List` (inset grouped, Claude-theme backgrounds) instead of a ScrollView so rows get native `swipeActions`: swipe left -> Delete -> the same confirm (whole lecture or audio only). Rows use a hidden NavigationLink so the card keeps its own look; long-press still works; a lecture that is recording can't be deleted.

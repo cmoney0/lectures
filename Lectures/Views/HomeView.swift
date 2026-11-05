@@ -20,41 +20,63 @@ struct HomeView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        // A List (not a ScrollView) so lectures get native swipe-to-delete.
+        List {
+            Section {
                 recordButton
                 if !lifeos.isConnected {
                     Button { showSettings = true } label: {
                         Label("Connect LifeOS so lectures go to Claude", systemImage: "link").font(.m(13, .semibold))
                     }
                 }
-                if !inProgress.isEmpty {
-                    SectionTitle("In progress")
-                    ForEach(inProgress) { lecture in
-                        NavigationLink(value: lecture) { PipelineCard(lecture: lecture) }
-                            .buttonStyle(.plain)
-                            .contextMenu { if lecture.stage != .recording { deleteButton(lecture) } }
-                    }
-                }
-                ForEach(classes, id: \.0) { course, items in
-                    SectionTitle(course)
-                    VStack(spacing: 0) {
-                        ForEach(items) { lecture in
-                            NavigationLink(value: lecture) { ReviewRow(lecture: lecture) }
-                                .buttonStyle(.plain)
-                                .contextMenu { deleteButton(lecture) }
-                            if lecture.id != items.last?.id { Divider().overlay(Theme.line).padding(.leading, 14) }
-                        }
-                    }
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
                 if lectures.isEmpty {
                     Text("Tap Record when class starts. Stop when it ends - Claude sends back a review, filed under the class.")
-                        .font(.m(13)).foregroundStyle(Theme.sub).padding(.top, 8)
+                        .font(.m(13)).foregroundStyle(Theme.sub)
                 }
             }
-            .padding(16)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+
+            if !inProgress.isEmpty {
+                Section {
+                    ForEach(inProgress) { lecture in
+                        ZStack {
+                            NavigationLink(value: lecture) { EmptyView() }.opacity(0)
+                            PipelineCard(lecture: lecture)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        .swipeActions(edge: .trailing) { swipeDelete(lecture) }
+                        .contextMenu { if lecture.stage != .recording { deleteButton(lecture) } }
+                    }
+                } header: {
+                    SectionTitle("In progress")
+                }
+            }
+
+            ForEach(classes, id: \.0) { course, items in
+                Section {
+                    ForEach(items) { lecture in
+                        ZStack {
+                            NavigationLink(value: lecture) { EmptyView() }.opacity(0)
+                            ReviewRow(lecture: lecture)
+                        }
+                        .listRowBackground(Theme.card)
+                        .listRowSeparatorTint(Theme.line)
+                        .listRowInsets(EdgeInsets())
+                        .swipeActions(edge: .trailing) { swipeDelete(lecture) }
+                        .contextMenu { deleteButton(lecture) }
+                    }
+                } header: {
+                    SectionTitle(course)
+                }
+            }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 10)
         .background(Theme.bg)
         .navigationTitle("Lectures")
         .navigationDestination(for: Lecture.self) { LectureDetailView(lecture: $0) }
@@ -102,6 +124,15 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
+    /// Swipe left -> Delete -> confirm (whole lecture, or just the audio).
+    @ViewBuilder
+    private func swipeDelete(_ lecture: Lecture) -> some View {
+        if lecture.stage != .recording {
+            Button { pendingDelete = lecture } label: { Label("Delete", systemImage: "trash") }
+                .tint(Theme.red)
+        }
+    }
+
     private func deleteButton(_ lecture: Lecture) -> some View {
         Button(role: .destructive) { pendingDelete = lecture } label: { Label("Delete", systemImage: "trash") }
     }
@@ -113,7 +144,7 @@ struct SectionTitle: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text).font(.m(13, .bold)).foregroundStyle(Theme.sub).padding(.top, 4)
+        Text(text).font(.m(13, .bold)).foregroundStyle(Theme.sub).textCase(nil).padding(.top, 4)
     }
 }
 
