@@ -37,7 +37,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
 
-Changes since then: none.
+Changes since then:
+- Home layout fix: Record button, in-progress cards and class groups share one width and 16 pt gutter; tighter section spacing.
 
 ## 2026-11-05 - v1 app
 
