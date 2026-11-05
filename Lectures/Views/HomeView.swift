@@ -36,7 +36,7 @@ struct HomeView: View {
             }
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
 
             if !inProgress.isEmpty {
                 Section {
@@ -47,7 +47,7 @@ struct HomeView: View {
                         }
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 5, leading: 0, bottom: 5, trailing: 0))
                         .swipeActions(edge: .trailing) { swipeDelete(lecture) }
                         .contextMenu { if lecture.stage != .recording { deleteButton(lecture) } }
                     }
@@ -75,6 +75,9 @@ struct HomeView: View {
             }
         }
         .listStyle(.insetGrouped)
+        // every block (Record, cards, class groups) shares one 16 pt gutter
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .listSectionSpacing(14)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 10)
         .background(Theme.bg)
@@ -144,7 +147,9 @@ struct SectionTitle: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text).font(.m(13, .bold)).foregroundStyle(Theme.sub).textCase(nil).padding(.top, 4)
+        Text(text).font(.m(13, .bold)).foregroundStyle(Theme.sub).textCase(nil)
+            .padding(.leading, 4).padding(.bottom, 2)
+            .listRowInsets(EdgeInsets())
     }
 }
 

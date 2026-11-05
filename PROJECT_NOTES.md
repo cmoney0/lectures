@@ -113,3 +113,9 @@ Changes since then: none.
 ### What Changed
 - The 2:05 PM test lecture sat at "Waiting for Claude": Colby had asked the old reviewer for a sample review ("Advancements in AI (sample review)"), then tapped Redo review so the app would refetch it, but that reviewer was never subscribed (auto mode denied it push access), so nothing woke. Restored it to `ready` (the sample review was still stored).
 - This build session subscribed to lectures PR #1 and is now the reviewer (REVIEWER.md updated); the blocked child reviewer was archived.
+
+## 2026-11-05 - Home layout fix (build 13 List)
+
+### What Changed
+- Build 13's List Home put the Record button, in-progress cards and class rows at three different widths (16 pt row insets inside the inset-grouped margin vs zero) with big section gaps. Now every row has zero horizontal insets, the list has one 16 pt horizontal content margin, section spacing 14, headers aligned to the cards.
+- The "Advancements in AI (sample review)" card stuck at Waiting was timing: the server flipped it to ready at 21:34:31, the minute of the screenshot; the app's 15 s poll / pull-to-refresh picks it up.
