@@ -144,16 +144,50 @@ enum Stage {
 }
 
 /// What Colby picks after Stop; saved as the default for next time.
+/// Several review types can be combined (e.g. notes + flashcards).
 struct ReviewOptions: Codable, Equatable {
-    var length = "standard"   // quick | standard | deep
-    var type = "notes"        // notes | exam | flashcards | summary
+    var length = "standard"     // quick | standard | deep
+    var types: [String] = ["notes"] // any of notes | exam | flashcards | summary
     var focus = ""
+
+    init(length: String = "standard", types: [String] = ["notes"], focus: String = "") {
+        self.length = length
+        self.types = types
+        self.focus = focus
+    }
+
+    enum CodingKeys: String, CodingKey { case length, types, type, focus }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        length = (try? c.decode(String.self, forKey: .length)) ?? "standard"
+        focus = (try? c.decode(String.self, forKey: .focus)) ?? ""
+        // build 7 saved a single `type`
+        if let many = try? c.decode([String].self, forKey: .types), !many.isEmpty { types = many }
+        else if let one = try? c.decode(String.self, forKey: .type) { types = [one] }
+        else { types = ["notes"] }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(length, forKey: .length)
+        try c.encode(types, forKey: .types)
+        try c.encode(focus, forKey: .focus)
+    }
+
+    mutating func toggle(_ type: String) {
+        if types.contains(type) {
+            if types.count > 1 { types.removeAll { $0 == type } } // keep at least one
+        } else {
+            types = Self.types.map(\.0).filter { $0 == type || types.contains($0) }
+        }
+    }
 
     static var saved: ReviewOptions {
         get {
             guard let data = UserDefaults.standard.data(forKey: "reviewOptions"),
                   let o = try? JSONDecoder().decode(ReviewOptions.self, from: data) else { return ReviewOptions() }
-            return ReviewOptions(length: o.length, type: o.type, focus: "")
+            return ReviewOptions(length: o.length, types: o.types, focus: "")
         }
         set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: "reviewOptions") }
     }

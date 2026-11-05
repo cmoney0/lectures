@@ -148,17 +148,18 @@ struct ReviewOptionsSheet: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Text("Review type").font(.m(12, .bold)).foregroundStyle(Theme.sub)
+                    Text("Review type - pick any").font(.m(12, .bold)).foregroundStyle(Theme.sub)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         ForEach(ReviewOptions.types, id: \.0) { key, label, icon in
-                            Button { options.type = key } label: {
+                            let on = options.types.contains(key)
+                            Button { options.toggle(key) } label: {
                                 VStack(spacing: 6) {
-                                    Image(systemName: icon).font(.system(size: 20))
+                                    Image(systemName: on ? "checkmark.circle.fill" : icon).font(.system(size: 20))
                                     Text(label).font(.m(13, .bold))
                                 }
                                 .frame(maxWidth: .infinity).padding(.vertical, 14)
-                                .foregroundStyle(options.type == key ? .white : Theme.text)
-                                .background(options.type == key ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 14))
+                                .foregroundStyle(on ? .white : Theme.text)
+                                .background(on ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 14))
                             }
                             .buttonStyle(.plain)
                         }

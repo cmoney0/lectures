@@ -20,7 +20,12 @@ You are the **Lectures - Reviewer** Claude session. You are subscribed to `cmone
 ## Options (`review_options`)
 
 - `length`: `quick` (fits one screen: summary + 3-5 sections, ~5 flashcards, 3 quiz questions), `standard` (thorough notes, ~10 flashcards, 5-6 questions), `deep` (everything worth knowing, worked examples, 15+ flashcards, 8-10 questions).
-- `type`: `notes` (study notes first), `exam` (what is likely tested, exam flags, harder quiz), `flashcards` (cards + quiz heavy, lighter notes), `summary` (summary + sections only; flashcards/quiz may be short).
+- `types`: a list - combine every type picked into ONE review (older rows may only have `type`):
+  - `notes`: thorough study notes (sections, key terms).
+  - `exam`: what is likely tested - strong exam flags, harder quiz questions.
+  - `flashcards`: plenty of flashcards and quiz questions.
+  - `summary`: a tight summary + sections.
+  - Fill every schema key either way; the picked types decide where the depth goes (e.g. notes + flashcards = full notes AND a full card deck).
 - `focus`: free text from Colby - follow it.
 
 ## Review JSON schema

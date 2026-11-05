@@ -39,8 +39,14 @@ struct SettingsView: View {
                     Picker("Length", selection: $options.length) {
                         ForEach(ReviewOptions.lengths, id: \.0) { Text($0.1).tag($0.0) }
                     }
-                    Picker("Type", selection: $options.type) {
-                        ForEach(ReviewOptions.types, id: \.0) { Text($0.1).tag($0.0) }
+                    ForEach(ReviewOptions.types, id: \.0) { key, label, icon in
+                        Button { options.toggle(key) } label: {
+                            HStack {
+                                Label(label, systemImage: icon).foregroundStyle(Theme.text)
+                                Spacer()
+                                if options.types.contains(key) { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
+                            }
+                        }
                     }
                 } header: {
                     Text("Default review")

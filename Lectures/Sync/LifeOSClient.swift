@@ -69,7 +69,7 @@ final class LifeOSClient {
         ]
         if lecture.reviewPending, let options = lecture.reviewOptions {
             body["requestReview"] = true
-            body["reviewOptions"] = ["length": options.length, "type": options.type, "focus": options.focus]
+            body["reviewOptions"] = ["length": options.length, "types": options.types, "type": options.types.first ?? "notes", "focus": options.focus]
         }
         _ = try await call("POST", body: try JSONSerialization.data(withJSONObject: body))
     }

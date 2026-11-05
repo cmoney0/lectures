@@ -37,7 +37,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this app for real").
 
-Changes since then: none.
+Changes since then:
+- Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
 
 ## 2026-11-05 - v1 app
 
@@ -72,3 +73,11 @@ Changes since then: none.
 - `project.yml`: `UIRequiresFullScreen: true` - App Store validation rejects a portrait-only app otherwise (run 5: "include all orientations to support iPad multitasking").
 ### Tests/Verification
 - Run 42094571872 (build 7): signed with the shared certificate, ARCHIVE SUCCEEDED, uploaded to TestFlight. Not yet opened on a phone.
+
+## 2026-11-05 - Multi-select review types + upload RLS fix
+
+### What Changed
+- `ReviewOptions.type` -> `types: [String]` (at least one; order follows the list). Decoder accepts build 7's single `type`. Sheet and Settings toggle types. Upload sends `types` (+ `type` = first for old servers). `REVIEWER.md`: combine all picked types into one review.
+- Server fix (no app change): uploads failed with "new row violates row-level security policy for table lectures" - the table had RLS on but no server policy. Added `lectures_server` (`lifeos_is_server()`, same as `iron_*`). The LifeOS server has no service-role key; it passes RLS with the `x-lifeos-server` header.
+### Tests/Verification
+- Server `cleanOptions` node test (dedupe, invalid dropped, legacy `type`). iOS compile: see the push run.
