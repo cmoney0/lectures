@@ -40,6 +40,8 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        # recording timer + Pause / Stop on the Lock Screen and Dynamic Island
+        NSSupportsLiveActivities: true
         NSMicrophoneUsageDescription: Lectures records your classes so they can be transcribed.
         NSSpeechRecognitionUsageDescription: Lectures turns your class recordings into text on your iPhone.
     settings:
@@ -47,6 +49,29 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # app-only bodies of the shared intents (Lectures/Shared)
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) LECTURES_APP"
+    dependencies:
+      - target: LecturesWidgets
+  # Live Activity + the "Record lecture" Control Center / Lock Screen control
+  LecturesWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LecturesWidgets
+      - path: Lectures/Shared
+    info:
+      path: LecturesWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Lectures
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures.widgets
+        SKIP_INSTALL: YES
 schemes:
   Lectures:
     build:

@@ -37,7 +37,7 @@ import jwt
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 API = "https://api.appstoreconnect.apple.com/v1"
-BUNDLES = {"Lectures": "com.cmoney0.lectures"}
+BUNDLES = {"Lectures": "com.cmoney0.lectures", "LecturesWidgets": "com.cmoney0.lectures.widgets"}
 TMP = pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "signing"
 KEYCHAIN = str(TMP / "ci.keychain-db")
 KC_PASS = "lectures-ci"
@@ -142,7 +142,7 @@ def bundle_id(target, ident):
     if not bundle:
         # needs no capabilities, so the API can register it itself
         bundle = call("POST", "/bundleIds", {"data": {"type": "bundleIds", "attributes": {
-            "identifier": ident, "name": "Lectures", "platform": "IOS"}}})["data"]
+            "identifier": ident, "name": target, "platform": "IOS"}}})["data"]
     if not bundle:
         sys.exit(f"No App ID {ident} in the developer portal - create it first")
     return bundle["id"]

@@ -88,7 +88,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" \
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/signing/ci.keychain-db" \
-            PROFILE_Lectures="$PROFILE_Lectures"
+            PROFILE_Lectures="$PROFILE_Lectures" PROFILE_LecturesWidgets="$PROFILE_LecturesWidgets"
           cat > "$RUNNER_TEMP/export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -100,6 +100,7 @@ jobs:
             <key>signingCertificate</key><string>Apple Distribution</string>
             <key>provisioningProfiles</key><dict>
               <key>$BUNDLE_Lectures</key><string>$PROFILE_Lectures</string>
+              <key>$BUNDLE_LecturesWidgets</key><string>$PROFILE_LecturesWidgets</string>
             </dict>
             <key>manageAppVersionAndBuildNumber</key><true/>
           </dict></plist>

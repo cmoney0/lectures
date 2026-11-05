@@ -3,150 +3,139 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// One lecture: playback, the transcript, and getting it to Claude.
+/// One lecture: Claude's review (notes, flashcards, quiz), the transcript and audio.
 struct LectureDetailView: View {
     @Bindable var lecture: Lecture
     @Environment(\.modelContext) private var context
-    @Environment(LifeOSClient.self) private var lifeos
+    @Environment(LectureRecorder.self) private var recorder
+    @State private var tab = 0
     @State private var player = LecturePlayer()
-    @State private var retranscribing = false
+    @State private var redoing = false
     @State private var message: String?
-    @State private var copied = false
+
+    private var review: LectureReview? { lecture.review }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Card {
-                    TextField("Title", text: $lecture.title, axis: .vertical)
-                        .font(.m(20, .bold)).foregroundStyle(Theme.text)
-                        .onSubmit { edited() }
-                    Text([lecture.courseName.isEmpty ? nil : lecture.courseName,
-                          lecture.recordedAt.formatted(date: .abbreviated, time: .shortened),
-                          Clock.string(lecture.durationSec),
-                          "\(lecture.wordCount) words"].compactMap { $0 }.joined(separator: " · "))
-                        .font(.m(12)).foregroundStyle(Theme.sub)
-                    syncLine
+                header
+                if lecture.stage != .done { PipelineCard(lecture: lecture) }
+                if review != nil {
+                    Picker("View", selection: $tab) {
+                        Text("Review").tag(0)
+                        Text("Cards").tag(1)
+                        Text("Quiz").tag(2)
+                        Text("Transcript").tag(3)
+                    }
+                    .pickerStyle(.segmented)
                 }
-
-                if lecture.hasAudio { playerCard }
-
-                Card {
-                    Text("Send to Claude").font(.m(12, .bold)).foregroundStyle(Theme.sub)
-                    Text(lifeos.isConnected
-                         ? "Your School Claude project reads this from LifeOS automatically. Or share it into any chat:"
-                         : "Share it into a Claude chat, or connect LifeOS in Settings so your School project gets every lecture automatically.")
-                        .font(.m(12)).foregroundStyle(Theme.sub)
-                    HStack(spacing: 10) {
-                        ShareLink(item: ClaudeExport.file(for: lecture), preview: SharePreview(lecture.title)) {
-                            Label("Share", systemImage: "square.and.arrow.up").font(.m(14, .bold))
-                                .frame(maxWidth: .infinity).padding(.vertical, 11)
-                                .foregroundStyle(.white).background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
-                        }
-                        Button {
-                            UIPasteboard.general.string = ClaudeExport.text(for: lecture)
-                            copied = true
-                        } label: {
-                            Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc").font(.m(14, .bold))
-                                .frame(maxWidth: .infinity).padding(.vertical, 11)
-                                .foregroundStyle(Theme.text).background(Theme.bg, in: RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if let guide = lecture.reviewGuide, !guide.isEmpty {
-                    Card {
-                        Text("Review guide").font(.m(12, .bold)).foregroundStyle(Theme.sub)
-                        Text(guide).font(.m(14)).foregroundStyle(Theme.text).textSelection(.enabled)
-                    }
-                }
-
-                Card {
-                    HStack {
-                        Text("Transcript").font(.m(12, .bold)).foregroundStyle(Theme.sub)
-                        Spacer()
-                        if lecture.hasAudio {
-                            Button(retranscribing ? "Transcribing..." : "Redo from audio") { Task { await retranscribe() } }
-                                .font(.m(12, .bold)).disabled(retranscribing || lecture.status == .recording)
-                        }
-                    }
-                    if let message { Text(message).font(.m(12)).foregroundStyle(Theme.red) }
-                    if lecture.transcript.isEmpty {
-                        Text(lecture.status == .failed
-                             ? "The app closed before this transcript was saved. Tap Redo from audio."
-                             : "No transcript yet.")
-                            .font(.m(14)).foregroundStyle(Theme.sub)
-                    } else {
-                        TranscriptText(transcript: lecture.transcript) { seconds in player.play(lecture.audioURL, from: seconds) }
-                    }
+                switch review == nil ? 3 : tab {
+                case 0: ReviewNotesView(review: review!) { stamp in seek(stamp) }
+                case 1: FlashcardsView(cards: review?.flashcards ?? [])
+                case 2: QuizView(questions: review?.quiz ?? [])
+                default: transcriptSection
                 }
             }
             .padding(16)
         }
         .background(Theme.bg)
         .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { player.stop(); edited() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { menu }
+        }
+        .onDisappear { player.stop() }
     }
 
-    private var syncLine: some View {
-        HStack(spacing: 6) {
-            if lecture.uploadedAt != nil {
-                Image(systemName: "checkmark.icloud.fill").foregroundStyle(Theme.green)
-                Text("In LifeOS - your School project can read it")
-            } else if let err = lecture.uploadError {
-                Image(systemName: "exclamationmark.icloud").foregroundStyle(Theme.red)
-                Text(err).lineLimit(2)
-                Button("Retry") { Task { await Uploader.send(lecture, with: lifeos); try? context.save() } }.font(.m(12, .bold))
-            } else if lecture.status == .ready {
-                Image(systemName: "icloud.and.arrow.up").foregroundStyle(Theme.sub)
-                Text(lifeos.isConnected ? "Waiting to send to LifeOS" : "Not connected to LifeOS")
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !lecture.displayCourse.isEmpty {
+                Text(lecture.displayCourse.uppercased()).font(.m(11, .heavy)).foregroundStyle(Theme.accent)
+            }
+            Text(lecture.displayTitle).font(.m(22, .heavy)).foregroundStyle(Theme.text)
+            Text("\(lecture.recordedAt.formatted(date: .abbreviated, time: .shortened)) · \(Clock.string(lecture.durationSec)) · \(lecture.wordCount) words")
+                .font(.m(12)).foregroundStyle(Theme.sub)
+            if lecture.hasAudio { playerBar.padding(.top, 6) }
+        }
+    }
+
+    private var playerBar: some View {
+        HStack(spacing: 14) {
+            Button { player.toggle(lecture.audioURL) } label: {
+                Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 34))
+            }
+            Button { player.skip(-15) } label: { Image(systemName: "gobackward.15").font(.system(size: 18)) }
+            Button { player.skip(15) } label: { Image(systemName: "goforward.15").font(.system(size: 18)) }
+            Spacer()
+            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                Text("\(Clock.string(player.time)) / \(Clock.string(lecture.durationSec))")
+                    .font(.m(12, .semibold)).monospacedDigit().foregroundStyle(Theme.sub)
             }
         }
-        .font(.m(12)).foregroundStyle(Theme.sub)
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.accent)
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var playerCard: some View {
+    private var transcriptSection: some View {
         Card {
-            HStack(spacing: 14) {
-                Button { player.toggle(lecture.audioURL) } label: {
-                    Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 38))
-                }
-                Button { player.skip(-15) } label: { Image(systemName: "gobackward.15").font(.system(size: 20)) }
-                Button { player.skip(15) } label: { Image(systemName: "goforward.15").font(.system(size: 20)) }
+            HStack {
+                Text("Transcript").font(.m(12, .bold)).foregroundStyle(Theme.sub)
                 Spacer()
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                    Text("\(Clock.string(player.time)) / \(Clock.string(lecture.durationSec))")
-                        .font(.m(12, .semibold)).monospacedDigit().foregroundStyle(Theme.sub)
-                }
+                Button("Copy") { UIPasteboard.general.string = lecture.transcript }.font(.m(12, .bold))
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.accent)
+            if let message { Text(message).font(.m(12)).foregroundStyle(Theme.red) }
+            if lecture.transcript.isEmpty {
+                Text("No transcript yet. Use Redo transcript from the menu.").font(.m(14)).foregroundStyle(Theme.sub)
+            } else {
+                TranscriptText(transcript: lecture.transcript) { seconds in player.play(lecture.audioURL, from: seconds) }
+            }
         }
     }
 
-    /// Title edits re-send to LifeOS.
-    private func edited() {
-        guard context.hasChanges else { return }
-        lecture.uploadedAt = nil
-        try? context.save()
-        Task { await Uploader.sendPending(in: context, with: lifeos) }
+    private var menu: some View {
+        Menu {
+            if let review {
+                ShareLink(item: ReviewPDF.file(for: lecture, review: review), preview: SharePreview(lecture.displayTitle)) {
+                    Label("Export PDF", systemImage: "doc.richtext")
+                }
+            }
+            ShareLink(item: ClaudeExport.text(for: lecture)) { Label("Share transcript to Claude", systemImage: "square.and.arrow.up") }
+            Button { recorder.awaitingOptions = lecture } label: {
+                Label(review == nil ? "Ask Claude for a review" : "Redo review", systemImage: "sparkles")
+            }
+            .disabled(lecture.status != .ready)
+            Button { Task { await recorder.start(resuming: lecture) } } label: {
+                Label("Continue recording", systemImage: "record.circle")
+            }
+            .disabled(recorder.isRecording || lecture.status == .recording)
+            if lecture.hasAudio {
+                Button { Task { await redoTranscript() } } label: { Label("Redo transcript from audio", systemImage: "waveform") }
+                    .disabled(redoing || lecture.status == .recording)
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
     }
 
-    private func retranscribe() async {
-        retranscribing = true
+    private func seek(_ stamp: String?) {
+        guard lecture.hasAudio, let stamp, let t = Clock.seconds(stamp) else { return }
+        player.play(lecture.audioURL, from: t)
+    }
+
+    private func redoTranscript() async {
+        redoing = true
         message = nil
-        defer { retranscribing = false }
+        tab = 3
+        defer { redoing = false }
         do {
             let pieces = try await OnDeviceSpeech.transcribe(file: lecture.audioURL)
             lecture.transcript = pieces.map { "\(Clock.marker($0.start)) \($0.text)" }.joined(separator: "\n")
-            if let file = try? AVAudioFile(forReading: lecture.audioURL) {
-                lecture.durationSec = Double(file.length) / file.fileFormat.sampleRate
-            }
+            lecture.durationSec = (try? await AudioMerge.duration(of: lecture.audioURL)) ?? lecture.durationSec
             lecture.engine = "on-device"
-            lecture.status = .ready
             lecture.uploadedAt = nil
             try? context.save()
-            await Uploader.sendPending(in: context, with: lifeos)
+            await Pipeline.sendPending()
         } catch {
             message = "Couldn't transcribe: \(error.localizedDescription)"
         }
@@ -160,55 +149,34 @@ struct TranscriptText: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(transcript.split(separator: "\n").enumerated()), id: \.offset) { _, line in
-                let (time, text) = Self.parse(String(line))
+            ForEach(Array(LectureRecorder.pieces(from: transcript).enumerated()), id: \.offset) { _, piece in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let time {
-                        Button(Clock.string(time)) { seek(time) }
-                            .font(.m(11, .semibold)).monospacedDigit().foregroundStyle(Theme.accent).buttonStyle(.plain)
-                    }
-                    Text(text).font(.m(15)).foregroundStyle(Theme.text).textSelection(.enabled)
+                    Button(Clock.string(piece.start)) { seek(piece.start) }
+                        .font(.m(11, .semibold)).monospacedDigit().foregroundStyle(Theme.accent).buttonStyle(.plain)
+                    Text(piece.text).font(.m(15)).foregroundStyle(Theme.text).textSelection(.enabled)
                 }
             }
         }
     }
-
-    /// "[1:02:03] text" -> (3723, "text")
-    static func parse(_ line: String) -> (Double?, String) {
-        guard line.hasPrefix("["), let close = line.firstIndex(of: "]") else { return (nil, line) }
-        let stamp = line[line.index(after: line.startIndex)..<close]
-        let parts = stamp.split(separator: ":").compactMap { Double($0) }
-        let seconds = parts.reduce(0) { $0 * 60 + $1 }
-        let text = String(line[line.index(after: close)...]).trimmingCharacters(in: .whitespaces)
-        return (parts.isEmpty ? nil : seconds, text)
-    }
 }
 
-/// What gets shared or copied into Claude: a short brief + the transcript.
+/// Plain-text version for sharing into a Claude chat by hand.
 enum ClaudeExport {
     static func text(for lecture: Lecture) -> String {
         """
-        # \(lecture.title)
-        Course: \(lecture.courseName.isEmpty ? "-" : lecture.courseName)
-        Recorded: \(lecture.recordedAt.formatted(date: .complete, time: .shortened)) (\(Clock.string(lecture.durationSec)))
+        # \(lecture.displayTitle)
+        \(lecture.displayCourse.isEmpty ? "" : "Course: \(lecture.displayCourse)\n")Recorded: \(lecture.recordedAt.formatted(date: .complete, time: .shortened)) (\(Clock.string(lecture.durationSec)))
 
-        This is an automatic, on-device transcript of my class lecture, so expect some misheard words.
+        This is an automatic on-device transcript of my class lecture, so expect some misheard words.
         Please turn it into study notes: the main ideas, key definitions and formulas, anything the professor said would be on an exam or homework, and a few practice questions.
 
         ## Transcript
         \(lecture.transcript)
         """
     }
-
-    static func file(for lecture: Lecture) -> URL {
-        let safe = lecture.title.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(safe.isEmpty ? "Lecture" : safe).md")
-        try? text(for: lecture).write(to: url, atomically: true, encoding: .utf8)
-        return url
-    }
 }
 
-/// Simple playback of a saved recording.
+/// Simple playback of the saved recording.
 @MainActor
 @Observable
 final class LecturePlayer {
@@ -223,6 +191,7 @@ final class LecturePlayer {
     }
 
     func play(_ url: URL, from seconds: Double?) {
+        guard !LectureRecorder.shared.isRecording else { return } // never steal the mic session
         if self.url != url || player == nil {
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
             try? AVAudioSession.sharedInstance().setActive(true)

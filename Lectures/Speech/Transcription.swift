@@ -1,12 +1,6 @@
 import AVFoundation
 import Speech
 
-/// One finalized piece of transcript and where it starts in the recording.
-struct TranscriptPiece: Sendable {
-    var start: Double
-    var text: String
-}
-
 enum TranscriptionError: LocalizedError {
     case unsupportedLocale
     case noAudioFormat

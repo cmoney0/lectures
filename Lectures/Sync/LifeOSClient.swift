@@ -2,15 +2,6 @@ import Foundation
 import Observation
 import Security
 
-struct Course: Codable, Hashable, Identifiable {
-    var id: String
-    var name: String
-    var code: String
-
-    /// Short label for chips: the course code when Canvas has one.
-    var short: String { code.isEmpty ? name : code }
-}
-
 enum LifeOSError: LocalizedError {
     case notConnected, wrongPasscode(left: Int?), lockedOut, notConfigured, server(String)
 
@@ -31,10 +22,10 @@ enum LifeOSError: LocalizedError {
 @MainActor
 @Observable
 final class LifeOSClient {
+    static let shared = LifeOSClient()
     static let base = URL(string: "https://lifeos-phi-ochre.vercel.app")!
 
     private(set) var isConnected = Keychain.read() != nil
-    private(set) var courses: [Course] = LifeOSClient.cachedCourses()
 
     // MARK: connect
 
@@ -51,7 +42,6 @@ final class LifeOSClient {
             guard let key = json["widgetKey"] as? String, !key.isEmpty else { throw LifeOSError.server("No key came back.") }
             Keychain.save(key)
             isConnected = true
-            await refreshCourses()
         case 401: throw LifeOSError.wrongPasscode(left: json["left"] as? Int)
         case 429: throw LifeOSError.lockedOut
         case 503: throw LifeOSError.notConfigured
@@ -64,36 +54,55 @@ final class LifeOSClient {
         isConnected = false
     }
 
-    // MARK: courses (active Canvas courses, cached for offline lecture halls)
-
-    func refreshCourses() async {
-        guard let data = try? await call("GET", query: [URLQueryItem(name: "courses", value: "1")]),
-              let body = try? JSONDecoder().decode(CoursesBody.self, from: data) else { return }
-        courses = body.courses.sorted { $0.short < $1.short }
-        if let saved = try? JSONEncoder().encode(courses) { UserDefaults.standard.set(saved, forKey: "courses") }
-    }
-
-    private struct CoursesBody: Decodable { var courses: [Course] }
-
-    private static func cachedCourses() -> [Course] {
-        guard let data = UserDefaults.standard.data(forKey: "courses") else { return [] }
-        return (try? JSONDecoder().decode([Course].self, from: data)) ?? []
-    }
-
     // MARK: lectures
 
+    /// Upserts the lecture. With `reviewPending` it also asks for a Claude
+    /// review, which rings the Reviewer session's doorbell.
     func upload(_ lecture: Lecture) async throws {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "id": lecture.id.uuidString,
-            "courseId": lecture.courseId ?? "",
-            "course": lecture.courseName,
             "title": lecture.title,
             "recordedAt": ISO8601DateFormatter().string(from: lecture.recordedAt),
             "durationSec": Int(lecture.durationSec),
             "transcript": lecture.transcript,
             "engine": lecture.engine,
         ]
+        if lecture.reviewPending, let options = lecture.reviewOptions {
+            body["requestReview"] = true
+            body["reviewOptions"] = ["length": options.length, "type": options.type, "focus": options.focus]
+        }
         _ = try await call("POST", body: try JSONSerialization.data(withJSONObject: body))
+    }
+
+    struct ServerLecture: Decodable {
+        var id: String
+        var course: String?
+        var courseId: String?
+        var reviewStatus: String?
+        var reviewError: String?
+        var review: LectureReview?
+
+        enum CodingKeys: String, CodingKey { case id, course, courseId, reviewStatus, reviewError, review }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            course = try? c.decodeIfPresent(String.self, forKey: .course)
+            courseId = try? c.decodeIfPresent(String.self, forKey: .courseId)
+            reviewStatus = try? c.decodeIfPresent(String.self, forKey: .reviewStatus)
+            reviewError = try? c.decodeIfPresent(String.self, forKey: .reviewError)
+            // a slightly off review must never break the whole sync
+            review = try? c.decodeIfPresent(LectureReview.self, forKey: .review)
+        }
+    }
+
+    private struct ListBody: Decodable { var lectures: [ServerLecture] }
+
+    /// Review status (and the review once ready) for these lectures.
+    func reviews(for ids: [UUID]) async throws -> [ServerLecture] {
+        guard !ids.isEmpty else { return [] }
+        let data = try await call("GET", query: [URLQueryItem(name: "ids", value: ids.map(\.uuidString).joined(separator: ","))])
+        return try JSONDecoder().decode(ListBody.self, from: data).lectures
     }
 
     func remove(_ id: UUID) async throws {

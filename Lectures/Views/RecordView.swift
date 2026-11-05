@@ -1,141 +1,81 @@
-import SwiftData
 import SwiftUI
+import UIKit
 
-/// Full-screen recorder: pick the class, hit record, watch the transcript come in.
-/// Closing the screen keeps recording (it keeps going with the phone locked too).
+/// Full-screen recorder. Opens already recording - no setup questions.
+/// Closing it keeps recording (and so does locking the phone).
 struct RecordView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
     @Environment(LectureRecorder.self) private var recorder
-    @Environment(LifeOSClient.self) private var lifeos
-    @AppStorage("lastCourseId") private var lastCourseId = ""
-    @State private var course: Course?
-    @State private var title = ""
-    @State private var titleEdited = false
     @State private var confirmStop = false
+    @State private var copied = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                if recorder.isRecording { recordingPanel } else { setupPanel }
+                TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+                    VStack(spacing: 8) {
+                        Text(Clock.string(recorder.elapsed))
+                            .font(.m(56, .heavy)).monospacedDigit().foregroundStyle(recorder.isPaused ? Theme.sub : Theme.text)
+                        LevelBar(level: recorder.isPaused ? 0 : recorder.level)
+                        Text(statusLine).font(.m(13, .semibold)).foregroundStyle(Theme.sub)
+                    }
+                }
+                if let error = recorder.errorMessage {
+                    Text(error).font(.m(12)).foregroundStyle(Theme.red).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                LiveTranscriptView(lines: recorder.liveLines, volatile: recorder.volatileText)
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            UIPasteboard.general.string = recorder.liveLines.map(\.text).joined(separator: " ")
+                            copied = true
+                            Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
+                        } label: {
+                            Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                                .font(.m(12, .bold)).padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(Theme.bg, in: Capsule())
+                        }
+                        .buttonStyle(.plain).foregroundStyle(Theme.accent).padding(10)
+                        .disabled(recorder.liveLines.isEmpty)
+                    }
+                HStack(spacing: 12) {
+                    Button { recorder.togglePause() } label: {
+                        Label(recorder.isPaused ? "Resume" : "Pause", systemImage: recorder.isPaused ? "play.fill" : "pause.fill")
+                            .font(.m(17, .bold)).frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .foregroundStyle(Theme.text).background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                    Button { confirmStop = true } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                            .font(.m(17, .bold)).frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .foregroundStyle(.white).background(Theme.red, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(!recorder.isRecording)
             }
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.bg)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(recorder.isRecording ? "Minimize" : "Cancel") { dismiss() }
+                    Button(recorder.isRecording ? "Minimize" : "Close") { dismiss() }
                 }
             }
-            .navigationTitle(recorder.isRecording ? "Recording" : "New lecture")
+            .navigationTitle(recorder.isStarting ? "Starting..." : "Recording")
             .navigationBarTitleDisplayMode(.inline)
-        }
-        .onAppear {
-            if course == nil { course = lifeos.courses.first { $0.id == lastCourseId } }
-            if !titleEdited { title = defaultTitle }
-        }
-        .onChange(of: course) { _, _ in if !titleEdited { title = defaultTitle } }
-    }
-
-    private var defaultTitle: String {
-        let day = Date().formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
-        return course.map { "\($0.short) - \(day)" } ?? "Lecture - \(day)"
-    }
-
-    // MARK: before recording
-
-    private var setupPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Card {
-                Text("Class").font(.m(12, .bold)).foregroundStyle(Theme.sub)
-                if lifeos.courses.isEmpty {
-                    Text(lifeos.isConnected ? "No active Canvas courses found." : "Connect LifeOS in Settings to pick from your Canvas classes.")
-                        .font(.m(13)).foregroundStyle(Theme.sub)
-                } else {
-                    FlowChips(courses: lifeos.courses, selected: $course)
-                }
-            }
-            Card {
-                Text("Title").font(.m(12, .bold)).foregroundStyle(Theme.sub)
-                TextField("Lecture title", text: $title)
-                    .font(.m(16, .semibold))
-                    .onChange(of: title) { _, new in if new != defaultTitle { titleEdited = true } }
-            }
-            if let error = recorder.errorMessage {
-                Text(error).font(.m(13)).foregroundStyle(Theme.red)
-            }
-            Spacer(minLength: 20)
-            Button {
-                lastCourseId = course?.id ?? ""
-                Task { await recorder.start(title: title, course: course, in: context) }
-            } label: {
-                HStack {
-                    if recorder.isStarting { ProgressView().tint(.white) } else { Image(systemName: "record.circle.fill") }
-                    Text(recorder.isStarting ? "Getting ready..." : "Start recording").font(.m(18, .bold))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .foregroundStyle(.white)
-                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(recorder.isStarting)
-            Text("The first recording downloads Apple's speech model once. After that it works offline.")
-                .font(.m(11)).foregroundStyle(Theme.sub)
-        }
-    }
-
-    // MARK: while recording
-
-    private var recordingPanel: some View {
-        VStack(spacing: 14) {
-            TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-                VStack(spacing: 8) {
-                    Text(Clock.string(recorder.elapsed))
-                        .font(.m(52, .heavy)).monospacedDigit().foregroundStyle(Theme.text)
-                    LevelBar(level: recorder.level)
-                    Text(recorder.current?.title ?? "").font(.m(14, .semibold)).foregroundStyle(Theme.sub).lineLimit(1)
-                }
-            }
-            if let error = recorder.errorMessage {
-                Text(error).font(.m(12)).foregroundStyle(Theme.red).frame(maxWidth: .infinity, alignment: .leading)
-            }
-            LiveTranscriptView(lines: recorder.liveLines, volatile: recorder.volatileText)
-            Button { confirmStop = true } label: {
-                Label("Stop", systemImage: "stop.fill")
-                    .font(.m(18, .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .foregroundStyle(.white)
-                    .background(Theme.red, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .confirmationDialog("End this recording?", isPresented: $confirmStop) {
-                Button("Stop and save", role: .destructive) {
-                    Task {
-                        await recorder.stop()
-                        await Uploader.sendPending(in: context, with: lifeos)
-                        dismiss()
-                    }
+            .confirmationDialog("End this lecture?", isPresented: $confirmStop) {
+                Button("Stop", role: .destructive) {
+                    // close first so the review-options sheet can open on Home
+                    dismiss()
+                    Task { await recorder.stop(askForOptions: true) }
                 }
             }
         }
     }
-}
 
-struct FlowChips: View {
-    let courses: [Course]
-    @Binding var selected: Course?
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(courses) { c in
-                    Chip(label: c.short, selected: selected == c) { selected = selected == c ? nil : c }
-                }
-            }
-        }
-        if let selected { Text(selected.name).font(.m(12)).foregroundStyle(Theme.sub).lineLimit(1) }
+    private var statusLine: String {
+        if recorder.isStarting { return "Getting the microphone and speech model ready..." }
+        if recorder.isPaused { return "Paused" }
+        return recorder.isRecording ? "Recording - keeps going with the phone locked" : ""
     }
 }
 
@@ -178,10 +118,97 @@ struct LiveTranscriptView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
+                .padding(.top, 30)
             }
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .onChange(of: lines.count) { _, _ in withAnimation { proxy.scrollTo("end", anchor: .bottom) } }
             .onChange(of: volatile) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
         }
+    }
+}
+
+/// After Stop: how Claude should review it. Sends itself with the last-used
+/// choices after 10 seconds if left alone.
+struct ReviewOptionsSheet: View {
+    let lecture: Lecture
+    @Environment(\.dismiss) private var dismiss
+    @State private var options = ReviewOptions.saved
+    @State private var countdown = 10
+    @State private var touched = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("\(Clock.string(lecture.durationSec)) · \(lecture.wordCount) words").font(.m(13)).foregroundStyle(Theme.sub)
+
+                    Text("Length").font(.m(12, .bold)).foregroundStyle(Theme.sub)
+                    Picker("Length", selection: $options.length) {
+                        ForEach(ReviewOptions.lengths, id: \.0) { Text($0.1).tag($0.0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("Review type").font(.m(12, .bold)).foregroundStyle(Theme.sub)
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(ReviewOptions.types, id: \.0) { key, label, icon in
+                            Button { options.type = key } label: {
+                                VStack(spacing: 6) {
+                                    Image(systemName: icon).font(.system(size: 20))
+                                    Text(label).font(.m(13, .bold))
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 14)
+                                .foregroundStyle(options.type == key ? .white : Theme.text)
+                                .background(options.type == key ? Theme.accent : Theme.card, in: RoundedRectangle(cornerRadius: 14))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    Text("Focus (optional)").font(.m(12, .bold)).foregroundStyle(Theme.sub)
+                    TextField("e.g. focus on the derivations", text: $options.focus, axis: .vertical)
+                        .font(.m(15)).padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(16)
+            }
+            .background(Theme.bg)
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 8) {
+                    Button { send() } label: {
+                        Text(touched ? "Send to Claude" : "Send to Claude (\(countdown))")
+                            .font(.m(17, .bold)).frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .foregroundStyle(.white).background(Theme.accent, in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    Button("Just save, no review") { justSave() }.font(.m(13, .semibold)).foregroundStyle(Theme.sub)
+                }
+                .buttonStyle(.plain)
+                .padding(16).background(Theme.bg)
+            }
+            .navigationTitle("Review this lecture")
+            .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: options) { _, _ in touched = true }
+            .task {
+                while !touched && countdown > 0 {
+                    try? await Task.sleep(for: .seconds(1))
+                    if !touched { countdown -= 1 }
+                }
+                if !touched { send() }
+            }
+        }
+        .presentationDetents([.large])
+        .interactiveDismissDisabled()
+    }
+
+    private func send() {
+        ReviewOptions.saved = options
+        Pipeline.requestReview(for: lecture, options: options)
+        Task { await Pipeline.sendPending() }
+        LectureRecorder.shared.awaitingOptions = nil
+        dismiss()
+    }
+
+    private func justSave() {
+        Task { await Pipeline.sendPending() }
+        LectureRecorder.shared.awaitingOptions = nil
+        dismiss()
     }
 }

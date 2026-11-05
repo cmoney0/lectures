@@ -1,24 +1,21 @@
 import SwiftUI
 
-/// Connect to LifeOS with the LifeOS passcode (typed once; only the widget key
-/// it unlocks is kept, in the Keychain).
+/// Connect to LifeOS (passcode typed once; only the key it unlocks is kept)
+/// and the default review options.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
     @Environment(LifeOSClient.self) private var lifeos
     @State private var passcode = ""
     @State private var busy = false
     @State private var error: String?
+    @State private var options = ReviewOptions.saved
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     if lifeos.isConnected {
-                        Label("Connected to LifeOS", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
-                        Text("\(lifeos.courses.count) Canvas classes loaded. Finished lectures go to LifeOS, where your School Claude project reads them.")
-                            .font(.m(12)).foregroundStyle(Theme.sub)
-                        Button("Reload classes") { Task { await lifeos.refreshCourses() } }
+                        Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
                         Button("Disconnect", role: .destructive) { lifeos.disconnect() }
                     } else {
                         SecureField("LifeOS passcode", text: $passcode)
@@ -35,12 +32,25 @@ struct SettingsView: View {
                 } header: {
                     Text("LifeOS")
                 } footer: {
-                    Text("Same passcode as the LifeOS app. It is only used once to unlock a key; the passcode is not saved.")
+                    Text("Lectures go through LifeOS to your Claude reviewer, and reviews come back the same way. Same passcode as the LifeOS app; it is not saved.")
                 }
 
-                Section("Transcription") {
-                    LabeledContent("Engine", value: "On-device (Apple)")
-                    Text("Free, private and offline. Audio never leaves your phone; only the text goes to LifeOS.")
+                Section {
+                    Picker("Length", selection: $options.length) {
+                        ForEach(ReviewOptions.lengths, id: \.0) { Text($0.1).tag($0.0) }
+                    }
+                    Picker("Type", selection: $options.type) {
+                        ForEach(ReviewOptions.types, id: \.0) { Text($0.1).tag($0.0) }
+                    }
+                } header: {
+                    Text("Default review")
+                } footer: {
+                    Text("Used when you stop from the Lock Screen, and preselected after Stop in the app.")
+                }
+
+                Section("Recording") {
+                    LabeledContent("Transcription", value: "On-device (Apple)")
+                    Text("Free and offline; audio never leaves your phone, only the text. Start from the Lock Screen / Control Center control, the Action Button (Shortcuts > Record lecture) or Siri: \"Record a lecture in Lectures\".")
                         .font(.m(12)).foregroundStyle(Theme.sub)
                 }
             }
@@ -49,6 +59,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .onChange(of: options) { _, new in ReviewOptions.saved = new }
         }
     }
 
@@ -59,7 +70,7 @@ struct SettingsView: View {
         do {
             try await lifeos.connect(passcode: passcode)
             passcode = ""
-            await Uploader.sendPending(in: context, with: lifeos)
+            await Pipeline.sendPending()
         } catch {
             self.error = error.localizedDescription
         }
