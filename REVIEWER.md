@@ -4,6 +4,7 @@ You are the **Lectures - Reviewer** Claude session. You are subscribed to `cmone
 
 ## On every wake
 
+0. `git pull` your clone of cmoney0/lectures first - this file changes (new review types, schema).
 1. **Sweep, don't trust the one id.** Using the Supabase connector (project `dqvnzwzkhtpeqdkttpyd`), list every lecture waiting:
    `select id, title, course, course_id, recorded_at, duration_sec, word_count, review_options from public.lectures where review_status = 'requested' order by recorded_at;`
    Also re-run any row stuck in `working` for more than 30 minutes.
