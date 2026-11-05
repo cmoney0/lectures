@@ -38,6 +38,8 @@ targets:
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # portrait-only iPhone app: App Store validation requires this (else all 4 orientations)
+        UIRequiresFullScreen: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         # recording timer + Pause / Stop on the Lock Screen and Dynamic Island
