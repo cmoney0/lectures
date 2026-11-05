@@ -35,13 +35,9 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this app for real").
+Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
 
-Changes since then:
-- Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
-- **iPad + in-depth study guide:** the app runs on iPad (all orientations), pulls every lecture from LifeOS (recorded on the iPhone), and a new review type "In-depth guide (iPad)" adds a Guide tab: textbook-style reading per section with the professor's Canvas slide pages as figures (tap to zoom), fill-in-the-blank checks typed inline, and problems with a Pencil scratchpad + step-by-step solutions. PDF export includes the guide with figures and an answer key.
-- Lecture rows on Home show the time recorded (e.g. Thu, Nov 5, 2:05 PM), so unsorted lectures can be told apart.
-- Delete: swipe a lecture left on Home (native List swipe), lecture menu > Delete, or long-press -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
+Changes since then: none.
 
 ## 2026-11-05 - v1 app
 
@@ -106,3 +102,8 @@ Changes since then:
 
 ### What Changed
 - Home is now a `List` (inset grouped, Claude-theme backgrounds) instead of a ScrollView so rows get native `swipeActions`: swipe left -> Delete -> the same confirm (whole lecture or audio only). Rows use a hidden NavigationLink so the card keeps its own look; long-press still works; a lecture that is recording can't be deleted.
+
+## 2026-11-05 - TestFlight build 13
+
+### Tests/Verification
+- Run 42112162040 (build 13, d2ab26a): archived, signed, uploaded. First build with the iPad target - Colby needs to install it on the iPad from TestFlight too.
