@@ -95,6 +95,23 @@ enum Pipeline {
         LectureRecorder.shared.awaitingOptions = lecture
     }
 
+    /// Removes a lecture everywhere: audio + chunks on the phone, the saved
+    /// lecture, and its copy in LifeOS (transcript + review).
+    static func delete(_ lecture: Lecture) {
+        let id = lecture.id, uploaded = lecture.uploadedAt != nil || lecture.reviewStatus != .none
+        try? FileManager.default.removeItem(at: lecture.audioURL)
+        try? FileManager.default.removeItem(at: lecture.chunkFolder)
+        context.delete(lecture)
+        try? context.save()
+        if uploaded { Task { try? await LifeOSClient.shared.remove(id) } }
+    }
+
+    /// Frees space but keeps the transcript and review.
+    static func deleteAudio(_ lecture: Lecture) {
+        try? FileManager.default.removeItem(at: lecture.audioURL)
+        try? FileManager.default.removeItem(at: lecture.chunkFolder)
+    }
+
     /// Uploads everything LifeOS doesn't have yet (and pending review requests).
     static func sendPending() async {
         let lifeos = LifeOSClient.shared

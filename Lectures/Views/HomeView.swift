@@ -33,7 +33,7 @@ struct HomeView: View {
                     ForEach(inProgress) { lecture in
                         NavigationLink(value: lecture) { PipelineCard(lecture: lecture) }
                             .buttonStyle(.plain)
-                            .contextMenu { deleteButton(lecture) }
+                            .contextMenu { if lecture.stage != .recording { deleteButton(lecture) } }
                     }
                 }
                 ForEach(classes, id: \.0) { course, items in
@@ -68,8 +68,9 @@ struct HomeView: View {
             await Pipeline.sendPending()
             await Pipeline.refreshReviews()
         }
-        .confirmationDialog("Delete this lecture?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), presenting: pendingDelete) { lecture in
-            Button("Delete from phone and LifeOS", role: .destructive) { delete(lecture) }
+        .confirmationDialog("Delete this lecture? It is removed from your phone and LifeOS.", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), presenting: pendingDelete) { lecture in
+            Button("Delete lecture", role: .destructive) { delete(lecture) }
+            if lecture.hasAudio { Button("Delete audio only (keep notes)") { Pipeline.deleteAudio(lecture) } }
         }
     }
 
@@ -105,14 +106,7 @@ struct HomeView: View {
         Button(role: .destructive) { pendingDelete = lecture } label: { Label("Delete", systemImage: "trash") }
     }
 
-    private func delete(_ lecture: Lecture) {
-        let id = lecture.id, uploaded = lecture.uploadedAt != nil
-        try? FileManager.default.removeItem(at: lecture.audioURL)
-        try? FileManager.default.removeItem(at: lecture.chunkFolder)
-        context.delete(lecture)
-        try? context.save()
-        if uploaded { Task { try? await LifeOSClient.shared.remove(id) } }
-    }
+    private func delete(_ lecture: Lecture) { Pipeline.delete(lecture) }
 }
 
 struct SectionTitle: View {

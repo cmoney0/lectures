@@ -39,6 +39,7 @@ Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this
 
 Changes since then:
 - Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
+- Delete: lecture menu > Delete (or long-press a lecture on Home) -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
 
 ## 2026-11-05 - v1 app
 
@@ -81,3 +82,10 @@ Changes since then:
 - Server fix (no app change): uploads failed with "new row violates row-level security policy for table lectures" - the table had RLS on but no server policy. Added `lectures_server` (`lifeos_is_server()`, same as `iron_*`). The LifeOS server has no service-role key; it passes RLS with the `x-lifeos-server` header.
 ### Tests/Verification
 - Server `cleanOptions` node test (dedupe, invalid dropped, legacy `type`). iOS compile: see the push run.
+
+## 2026-11-05 - Delete lectures
+
+### What Changed
+- `Pipeline.delete` (audio, chunks, local record, LifeOS row) and `Pipeline.deleteAudio`; Delete in the lecture menu with a confirmation; Home long-press offers the same two choices. Deleting from the detail screen waits until it has closed (SwiftData must not render a deleted model).
+### Tests/Verification
+- iOS compile on push (see run).

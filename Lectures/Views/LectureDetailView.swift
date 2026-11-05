@@ -12,6 +12,8 @@ struct LectureDetailView: View {
     @State private var player = LecturePlayer()
     @State private var redoing = false
     @State private var message: String?
+    @State private var confirmDelete = false
+    @Environment(\.dismiss) private var dismiss
 
     private var review: LectureReview? { lecture.review }
 
@@ -44,6 +46,18 @@ struct LectureDetailView: View {
             ToolbarItem(placement: .topBarTrailing) { menu }
         }
         .onDisappear { player.stop() }
+        .confirmationDialog("Delete this lecture? It is removed from your phone and LifeOS.", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete lecture", role: .destructive) {
+                player.stop()
+                dismiss()
+                // delete after the screen has closed so it never draws a deleted lecture
+                let doomed = lecture
+                Task { try? await Task.sleep(for: .milliseconds(500)); Pipeline.delete(doomed) }
+            }
+            if lecture.hasAudio {
+                Button("Delete audio only (keep notes)") { player.stop(); Pipeline.deleteAudio(lecture) }
+            }
+        }
     }
 
     private var header: some View {
@@ -113,6 +127,9 @@ struct LectureDetailView: View {
                 Button { Task { await redoTranscript() } } label: { Label("Redo transcript from audio", systemImage: "waveform") }
                     .disabled(redoing || lecture.status == .recording)
             }
+            Divider()
+            Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                .disabled(lecture.status == .recording)
         } label: {
             Image(systemName: "ellipsis.circle")
         }
