@@ -7,7 +7,7 @@ Read `PROJECT_NOTES.md` before meaningful work and add a dated entry after every
 ## Rules
 
 - **Same response style as LifeOS:** start with a `---` line, short bold `##` sections, concise, plain-language outcomes, no pasted code unless asked, a crisp recommendation.
-- **TestFlight needs Colby's explicit approval, every time.** Never start the workflow's manual run with `testflight: true` on your own. End every reply with a **Next build** list of changes since the last TestFlight build (kept in `PROJECT_NOTES.md` > Next Build Queue).
+- **TestFlight needs Colby's explicit approval, every time.** Never start the workflow's manual run with `testflight: true` on your own. End every reply with a **Next build** list of changes since the last TestFlight build (kept in `PROJECT_NOTES.md` > Next Build Queue). List **only Lectures changes** there - never LifeOS native changes, even in a session that also has LifeOS open (Colby, 2026-11-05).
 - Land finished work on `main` (standing permission; on a pinned web-session branch push it, open a PR to `main`, merge it).
 - There is no Mac: the iOS workflow compiles on every push to `main`. Check its result after pushing Swift changes.
 - Target Colby's iPhone 18 Pro Max (440 x 956 pt). Style = LifeOS Claude theme: warm gray surfaces, Claude-orange accent `#C96442`, Manrope (`Lectures/Views/Theme.swift`).
