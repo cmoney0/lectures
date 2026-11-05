@@ -40,7 +40,8 @@ API = "https://api.appstoreconnect.apple.com/v1"
 BUNDLES = {"Lectures": "com.cmoney0.lectures", "LecturesWidgets": "com.cmoney0.lectures.widgets"}
 TMP = pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "signing"
 KEYCHAIN = str(TMP / "ci.keychain-db")
-KC_PASS = "lectures-ci"
+# must match the password inside the shared dist-cert.enc .p12 (made by LifeOS CI)
+KC_PASS = "lifeos-ci"
 
 
 def token():
