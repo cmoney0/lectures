@@ -4,7 +4,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Current Status
 
-- 2026-11-05: one-button redesign compiles in CI (run 42090266929, app + LecturesWidgets extension). **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`; CI registers `com.cmoney0.lectures.widgets` itself).
+- 2026-11-05: one-button redesign compiles in CI (run 42090266929, app + LecturesWidgets extension). First TestFlight build **7** uploaded (run 42094571872).
 - Reviewer session "Lectures - Reviewer" (session_01Xw2SgWNtxCJLsCGhVGbHZX, runs on the lifeos environment because its setup script cds into lifeos) reaches Supabase; its PR #1 subscription needs push access on cmoney0/lectures, which Colby must approve in that session. **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
 
 ## Architecture
@@ -35,10 +35,9 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Changes since the last TestFlight build (none yet - first build):
-- One-button recording with live on-device transcript + Copy; Live Activity with Pause / Stop & send; Control Center / Action Button / Siri start.
-- Review options after Stop -> Claude Reviewer session -> interactive review (notes, flashcards, quiz, PDF) filed by class.
-- Home progress steps; crash-safe chunked audio with Continue recording.
+Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this app for real").
+
+Changes since then: none.
 
 ## 2026-11-05 - v1 app
 
@@ -65,3 +64,11 @@ Changes since the last TestFlight build (none yet - first build):
 - The Reviewer must run in the lifeos environment (its setup script `cd`s into lifeos); it attaches lectures with add_repo.
 ### Tests/Verification
 - 6eb14dc: iOS run 42090266929 BUILD SUCCEEDED (app + extension). Server: LifeOS PR #642. Reviewer reached Supabase (0 lectures). End-to-end doorbell test pending the Reviewer's push access.
+
+## 2026-11-05 - First TestFlight build (7)
+
+### What Changed
+- `ci/signing.py`: the p12 password must stay `lifeos-ci` - the shared `dist-cert.enc` .p12 was made by LifeOS CI with it (run 3 failed at `security import`).
+- `project.yml`: `UIRequiresFullScreen: true` - App Store validation rejects a portrait-only app otherwise (run 5: "include all orientations to support iPad multitasking").
+### Tests/Verification
+- Run 42094571872 (build 7): signed with the shared certificate, ARCHIVE SUCCEEDED, uploaded to TestFlight. Not yet opened on a phone.
