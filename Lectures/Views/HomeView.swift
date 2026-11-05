@@ -205,7 +205,7 @@ struct ReviewRow: View {
                 .font(.system(size: 18)).foregroundStyle(Theme.accent).frame(width: 26)
             VStack(alignment: .leading, spacing: 3) {
                 Text(lecture.displayTitle).font(.m(15, .semibold)).foregroundStyle(Theme.text).lineLimit(1)
-                Text("\(lecture.recordedAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) · \(Clock.string(lecture.durationSec))\(lecture.stage == .saved ? " · no review" : "")")
+                Text("\(lecture.recordedAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())) · \(Clock.string(lecture.durationSec))\(lecture.stage == .saved ? " · no review" : "")")
                     .font(.m(12)).foregroundStyle(Theme.sub)
             }
             Spacer()

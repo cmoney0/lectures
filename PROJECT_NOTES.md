@@ -39,6 +39,7 @@ Last TestFlight build: **7** (a9669e1, 2026-11-05, approved by Colby: "push this
 
 Changes since then:
 - Review types are multi-select (after Stop and in Settings defaults); old single-type options still decode.
+- Lecture rows on Home show the time recorded (e.g. Thu, Nov 5, 2:05 PM), so unsorted lectures can be told apart.
 - Delete: lecture menu > Delete (or long-press a lecture on Home) -> Delete lecture (phone + LifeOS copy) or Delete audio only (keep transcript + review).
 
 ## 2026-11-05 - v1 app
