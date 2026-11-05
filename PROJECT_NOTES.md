@@ -4,7 +4,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Current Status
 
-- v1 app built 2026-11-05; compiles in CI. **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
+- v1 app built 2026-11-05; compiles in CI (run 42074963431, BUILD SUCCEEDED, no warnings in app code; secrets detected). **No TestFlight build yet** (needs Colby's approval + the App Store Connect app record for `com.cmoney0.lectures`).
 
 ## Architecture
 
@@ -38,4 +38,5 @@ Changes since the last TestFlight build (none yet):
 - On-device chosen over sending audio to Claude: the Claude API takes no audio input, on-device is free/offline/private, and the audio is kept so a cloud pass can be added later.
 - Profiles are `Lectures CI <target>`, never `LifeOS CI ...` (LifeOS signing deletes unknown `LifeOS CI` profiles).
 ### Tests/Verification
-- See commit history / iOS workflow runs.
+- 3fb089c: iOS workflow run 1 (42074963431) generated the project and compiled for the simulator - BUILD SUCCEEDED. Server routes live: `/api/lectures` answers 401 without a key (LifeOS PR #636, dc4fc98).
+- Not yet run on a real phone (needs the first TestFlight build).
