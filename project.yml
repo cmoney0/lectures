@@ -1,0 +1,54 @@
+# Lectures - records classes, transcribes them on-device, sends the text to
+# LifeOS for the School Claude project. XcodeGen spec: CI generates
+# Lectures.xcodeproj from this file; the Xcode project is never committed.
+name: Lectures
+options:
+  bundleIdPrefix: com.cmoney0
+  deploymentTarget:
+    # iOS 26: SpeechAnalyzer / SpeechTranscriber (Apple's long-form on-device model)
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # Upload runs pass PROFILE_Lectures (ci/signing.py); empty for simulator builds.
+    PROVISIONING_PROFILE_SPECIFIER: "$(PROFILE_$(TARGET_NAME))"
+targets:
+  Lectures:
+    type: application
+    platform: iOS
+    sources:
+      - path: Lectures
+    info:
+      path: Lectures/Info.plist
+      properties:
+        CFBundleDisplayName: Lectures
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        # keeps recording with the phone locked
+        UIBackgroundModes: [audio]
+        UIAppFonts: [Manrope-Medium.ttf, Manrope-SemiBold.ttf, Manrope-Bold.ttf, Manrope-ExtraBold.ttf]
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSMicrophoneUsageDescription: Lectures records your classes so they can be transcribed.
+        NSSpeechRecognitionUsageDescription: Lectures turns your class recordings into text on your iPhone.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+schemes:
+  Lectures:
+    build:
+      targets:
+        Lectures: all

@@ -1,0 +1,116 @@
+# Lectures iOS app.
+#
+#   push to main - generate the Xcode project and compile for the simulator
+#   manual run   - "Run workflow" with TestFlight ticked archives, signs and
+#                  uploads to TestFlight. ONLY when Colby approves a build.
+#
+# Secrets (Settings > Secrets and variables > Actions): APPLE_TEAM_ID,
+# ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (the whole .p8 file) - the same
+# App Store Connect key as LifeOS, so ci/dist-cert.enc (LifeOS's certificate)
+# opens here too. Until they are set the upload step is skipped.
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Lectures/**'
+      - 'project.yml'
+      - 'ci/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: Upload this build to TestFlight
+        type: boolean
+        default: true
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: write   # the upload step commits ci/dist-cert.enc when it made a new certificate
+    runs-on: ${{ vars.IOS_RUNNER || 'macos-15-intel' }}
+    timeout-minutes: 45
+    env:
+      HAS_ASC: ${{ secrets.ASC_KEY_ID != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Newest stable Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate
+
+      - name: Compile (simulator)
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.testflight) }}
+        run: |
+          set +e
+          xcodebuild build -project Lectures.xcodeproj -scheme Lectures \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/build.log" 2>&1
+          STATUS=$?
+          set -e
+          grep -E "error:|warning: .*/Lectures/|\*\* BUILD" "$RUNNER_TEMP/build.log" | head -200 || true
+          if [ $STATUS -ne 0 ]; then tail -80 "$RUNNER_TEMP/build.log"; exit $STATUS; fi
+
+      - name: Archive + upload to TestFlight
+        if: env.HAS_ASC == 'true' && (github.event_name == 'workflow_dispatch' && inputs.testflight)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          export ASC_KEY_FILE="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$ASC_KEY_FILE"
+          python3 -m pip install --quiet --user pyjwt cryptography 2>/dev/null \
+            || python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          python3 ci/signing.py setup
+          if [ -f "$RUNNER_TEMP/signing/store-changed" ]; then
+            git config user.name "Lectures CI"; git config user.email "ci@lectures.invalid"
+            git add ci/dist-cert.enc
+            git commit -m "iOS signing: store the new distribution certificate (encrypted)"
+            for i in 1 2 3; do git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break; sleep 5; done
+          fi
+          set -a; source "$RUNNER_TEMP/signing/signing.env"; set +a
+          xcodebuild archive -project Lectures.xcodeproj -scheme Lectures -configuration Release \
+            -destination generic/platform=iOS -archivePath "$RUNNER_TEMP/Lectures.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/signing/ci.keychain-db" \
+            PROFILE_Lectures="$PROFILE_Lectures"
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE_Lectures</key><string>$PROFILE_Lectures</string>
+            </dict>
+            <key>manageAppVersionAndBuildNumber</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Lectures.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$ASC_KEY_FILE" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Uploaded build $BUILD_NUMBER - it shows in TestFlight after Apple's processing (usually 5-15 min)."
+
+      - name: Remove the temp keychain
+        if: always() && env.HAS_ASC == 'true' && (github.event_name == 'workflow_dispatch' && inputs.testflight)
+        run: |
+          python3 ci/signing.py cleanup || true
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8
