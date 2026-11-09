@@ -42,11 +42,12 @@ struct LectureLiveActivity: Widget {
                         Text(mode.label).font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(mode.color)
                     }
                 }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if mode != .stopped { Buttons(paused: mode == .paused) }
+                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(mode == .stopped ? "Open Lectures to continue this lecture." : context.state.lastLine)
-                            .font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
-                        if mode != .stopped { Buttons(paused: mode == .paused) }
+                    if mode == .stopped {
+                        Text("Open Lectures to continue this lecture.").font(.system(size: 13)).foregroundStyle(LectureColors.sub)
                     }
                 }
             } compactLeading: {
@@ -103,14 +104,14 @@ private struct LockScreenView: View {
 
     var body: some View {
         let mode = Mode(state: state, stale: stale)
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                RecDot(mode: mode, size: 12)
-                Text(mode.label).font(.system(size: 15, weight: .heavy, design: .rounded)).foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
-                Spacer()
-            }
-            Text(mode == .stopped ? "The app closed. Open Lectures to continue this lecture." : state.lastLine)
-                .font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
+        // No transcript - just the dot, the state and icon-only controls (Colby).
+        HStack(spacing: 10) {
+            RecDot(mode: mode, size: 12)
+            Text(mode == .stopped ? "Recording stopped - open Lectures" : mode.label)
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
+                .lineLimit(1)
+            Spacer()
             if mode != .stopped { Buttons(paused: mode == .paused) }
         }
         .padding(16)
@@ -121,18 +122,20 @@ private struct Buttons: View {
     let paused: Bool
 
     var body: some View {
+        // icons only: pause / play, and stop (stop sends with your default review)
         HStack(spacing: 10) {
             Button(intent: PauseLectureIntent()) {
-                Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 14, weight: .bold, design: .rounded)).frame(maxWidth: .infinity)
+                Image(systemName: paused ? "play.fill" : "pause.fill").font(.system(size: 16, weight: .bold))
+                    .frame(width: 22, height: 22)
             }
             .tint(LectureColors.sub)
             Button(intent: StopLectureIntent()) {
-                Label("Stop & send", systemImage: "stop.fill")
-                    .font(.system(size: 14, weight: .bold, design: .rounded)).frame(maxWidth: .infinity)
+                Image(systemName: "stop.fill").font(.system(size: 16, weight: .bold))
+                    .frame(width: 22, height: 22)
             }
             .tint(LectureColors.red)
         }
         .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.circle)
     }
 }

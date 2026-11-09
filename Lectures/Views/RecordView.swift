@@ -135,6 +135,9 @@ struct ReviewOptionsSheet: View {
     @State private var options = ReviewOptions.saved
     @State private var countdown = 10
     @State private var touched = false
+    /// Set by any choice (send / save / delete) - the countdown must never fire after.
+    @State private var decided = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -179,7 +182,11 @@ struct ReviewOptionsSheet: View {
                             .font(.m(17, .bold)).frame(maxWidth: .infinity).padding(.vertical, 16)
                             .foregroundStyle(.white).background(Theme.accent, in: RoundedRectangle(cornerRadius: 16))
                     }
-                    Button("Just save, no review") { justSave() }.font(.m(13, .semibold)).foregroundStyle(Theme.sub)
+                    HStack(spacing: 24) {
+                        Button("Save only - no review") { justSave() }.font(.m(14, .semibold)).foregroundStyle(Theme.sub)
+                        Button("Delete recording") { touched = true; confirmDelete = true }
+                            .font(.m(14, .semibold)).foregroundStyle(Theme.red)
+                    }
                 }
                 .buttonStyle(.plain)
                 .padding(16).background(Theme.bg)
@@ -188,11 +195,17 @@ struct ReviewOptionsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: options) { _, _ in touched = true }
             .task {
-                while !touched && countdown > 0 {
-                    try? await Task.sleep(for: .seconds(1))
-                    if !touched { countdown -= 1 }
+                // Auto-send after 10 s untouched. A cancelled sleep (the sheet
+                // closing after Save / Delete) must stop here - it used to fall
+                // through and send anyway.
+                while !touched && !decided && countdown > 0 {
+                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                    if !touched && !decided { countdown -= 1 }
                 }
-                if !touched { send() }
+                if !touched && !decided && !Task.isCancelled { send() }
+            }
+            .confirmationDialog("Delete this recording? Nothing is sent to Claude.", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete recording", role: .destructive) { deleteRecording() }
             }
         }
         .presentationDetents([.large])
@@ -200,6 +213,8 @@ struct ReviewOptionsSheet: View {
     }
 
     private func send() {
+        guard !decided else { return }
+        decided = true
         ReviewOptions.saved = options
         Pipeline.requestReview(for: lecture, options: options)
         Task { await Pipeline.sendPending() }
@@ -208,8 +223,20 @@ struct ReviewOptionsSheet: View {
     }
 
     private func justSave() {
+        guard !decided else { return }
+        decided = true
         Task { await Pipeline.sendPending() }
         LectureRecorder.shared.awaitingOptions = nil
         dismiss()
+    }
+
+    private func deleteRecording() {
+        guard !decided else { return }
+        decided = true
+        LectureRecorder.shared.awaitingOptions = nil
+        dismiss()
+        // after the sheet closes, so it never draws a deleted lecture
+        let doomed = lecture
+        Task { try? await Task.sleep(for: .milliseconds(500)); Pipeline.delete(doomed) }
     }
 }

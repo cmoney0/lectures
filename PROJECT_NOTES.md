@@ -38,6 +38,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
 
 Changes since then:
+- Lock Screen Live Activity: no transcript line; one row with the dot, state and icon-only round buttons (pause/play, stop).
+- After Stop: "Delete recording" (confirm) next to "Save only - no review". Fixed: "Save only" sometimes still sent to Claude.
 - Live Activity: just a red recording dot (no timer) on the Lock Screen and Dynamic Island; gray when paused; "Recording stopped" with a hollow dot if the app dies.
 - Crash alert: if the app dies while recording, a "Lectures stopped recording" notification arrives within ~75 s; tapping it reopens the app and continues the same lecture.
 - Home layout fix: Record button, in-progress cards and class groups share one width and 16 pt gutter; tighter section spacing.
@@ -133,3 +135,10 @@ Changes since then:
 ### Design/Workflow Notes
 - A phone call pauses recording and can suspend the app, so a call longer than ~75 s may also trigger the alert - acceptable (recording really did pause).
 - The crash itself is not diagnosed yet: TestFlight crash reports (App Store Connect > TestFlight > Crashes, or the TestFlight app's feedback) would show where.
+
+## 2026-11-09 - Save-only fix, delete before sending, simpler Lock Screen
+
+### What Changed
+- Bug: "Just save, no review" still sent the lecture to Claude. Dismissing the options sheet cancels its `.task`; the countdown's `try? await Task.sleep` swallowed the cancellation, so the loop ran down instantly and called `send()`. Now the loop returns on cancellation and every action sets `decided` first (send/save/delete are one-shot).
+- Options sheet: "Save only - no review" and "Delete recording" (confirm; deletes after the sheet closes).
+- Live Activity: Lock Screen is one row (dot, state, icon-only circular pause/play + stop), no transcript; Dynamic Island expanded shows the dot/state and the same icon buttons.
