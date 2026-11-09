@@ -76,7 +76,8 @@ final class AudioPipeline: @unchecked Sendable {
             AVFormatIDKey: kAudioFormatMPEG4AAC,
             AVSampleRateKey: Self.recordFormat.sampleRate,
             AVNumberOfChannelsKey: 1,
-            AVEncoderBitRateKey: 48_000,
+            // 32 kbps mono is plenty for speech: a 75-min class is ~18 MB (OpenAI takes at most 25 MB)
+            AVEncoderBitRateKey: 32_000,
         ]
         file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
         chunkFrames = 0
@@ -172,9 +173,21 @@ enum AudioMerge {
             try track.insertTimeRange(CMTimeRange(start: .zero, duration: length), of: source, at: cursor)
             cursor = cursor + length
         }
-        guard cursor.seconds > 0, let export = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else { return 0 }
+        guard cursor.seconds > 0 else { return 0 }
         let temp = folder.appendingPathComponent("merged-\(UUID().uuidString).m4a")
-        try await export.export(to: temp, as: .m4a)
+        // passthrough keeps the recorded AAC as-is (fast, small); re-encode only if that fails
+        var exported = false
+        for preset in [AVAssetExportPresetPassthrough, AVAssetExportPresetAppleM4A] {
+            guard let export = AVAssetExportSession(asset: composition, presetName: preset) else { continue }
+            do {
+                try await export.export(to: temp, as: .m4a)
+                exported = true
+                break
+            } catch {
+                try? fm.removeItem(at: temp)
+            }
+        }
+        guard exported else { return 0 }
         try? fm.removeItem(at: output)
         try fm.moveItem(at: temp, to: output)
         for chunk in chunkFiles { try? fm.removeItem(at: chunk) }

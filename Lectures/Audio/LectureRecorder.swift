@@ -174,15 +174,20 @@ final class LectureRecorder {
         isPaused = false
         offset = 0
 
-        if askForOptions {
-            awaitingOptions = lecture
-        } else {
-            Pipeline.requestReview(for: lecture, options: .saved)
-            await Pipeline.sendPending()
-        }
+        // Settings > Transcription: the review uses this engine's transcript
+        let engine = TranscriptionEngine.saved
+        lecture.transcriptEngine = engine.rawValue
+        try? context.save()
+        if askForOptions { awaitingOptions = lecture }
         if let total = try? await AudioMerge.merge(folder: lecture.chunkFolder, into: lecture.audioURL), total > 0 {
             lecture.durationSec = total
             try? context.save()
+        }
+        // cloud engine: upload the merged audio and start it before asking for the review
+        if engine != .onDevice { await Pipeline.cloudTranscribe(lecture, engine: engine, forReview: true) }
+        if !askForOptions {
+            Pipeline.requestReview(for: lecture, options: .saved)
+            await Pipeline.sendPending()
         }
     }
 

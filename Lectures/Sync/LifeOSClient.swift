@@ -66,6 +66,7 @@ final class LifeOSClient {
             "durationSec": Int(lecture.durationSec),
             "transcript": lecture.transcript,
             "engine": lecture.engine,
+            "transcriptEngine": lecture.transcriptEngine ?? TranscriptionEngine.onDevice.rawValue,
         ]
         if lecture.reviewPending, let options = lecture.reviewOptions {
             body["requestReview"] = true
@@ -144,6 +145,47 @@ final class LifeOSClient {
         try? FileManager.default.removeItem(at: local)
         try FileManager.default.moveItem(at: temp, to: local)
         return local
+    }
+
+    // MARK: cloud transcription
+
+    /// Sends the recording straight to LifeOS's private audio storage (a signed
+    /// upload URL - large files never pass through Vercel).
+    func uploadAudio(_ lecture: Lecture) async throws {
+        let data = try await call("POST", query: [URLQueryItem(name: "upload", value: "1")],
+                                  body: try JSONSerialization.data(withJSONObject: ["id": lecture.id.uuidString]))
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let link = json["url"] as? String, let url = URL(string: link) else { throw LifeOSError.server("No upload link came back.") }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        req.timeoutInterval = 600
+        req.setValue("audio/mp4", forHTTPHeaderField: "Content-Type")
+        req.setValue("true", forHTTPHeaderField: "x-upsert")
+        let (_, response) = try await URLSession.shared.upload(for: req, fromFile: lecture.audioURL)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw LifeOSError.server("Audio upload failed (\(status)).") }
+    }
+
+    /// Starts a cloud transcript of the uploaded audio.
+    func transcribe(_ id: UUID, engine: TranscriptionEngine) async throws {
+        _ = try await call("POST", query: [URLQueryItem(name: "transcribe", value: "1")],
+                           body: try JSONSerialization.data(withJSONObject: ["id": id.uuidString, "engine": engine.rawValue]))
+    }
+
+    struct CloudTranscript: Decodable, Identifiable {
+        var engine: String
+        var status: String
+        var transcript: String?
+        var words: Int?
+        var error: String?
+        var id: String { engine }
+    }
+
+    private struct TranscriptsBody: Decodable { var transcripts: [CloudTranscript] }
+
+    func transcripts(_ id: UUID) async throws -> [CloudTranscript] {
+        let data = try await call("GET", query: [URLQueryItem(name: "transcripts", value: id.uuidString)])
+        return try JSONDecoder().decode(TranscriptsBody.self, from: data).transcripts
     }
 
     func remove(_ id: UUID) async throws {

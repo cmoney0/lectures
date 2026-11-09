@@ -148,6 +148,30 @@ enum Pipeline {
         try? FileManager.default.removeItem(at: lecture.chunkFolder)
     }
 
+    /// Cloud transcription of a finished lecture: make sure LifeOS has the
+    /// lecture, upload the audio, start the engine. With `forReview`, a failure
+    /// falls back to the on-device transcript so the review still happens.
+    static func cloudTranscribe(_ lecture: Lecture, engine: TranscriptionEngine, forReview: Bool) async {
+        guard engine != .onDevice, lecture.hasAudio else { return }
+        let lifeos = LifeOSClient.shared
+        do {
+            try await lifeos.upload(lecture)
+            try await lifeos.uploadAudio(lecture)
+            try await lifeos.transcribe(lecture.id, engine: engine)
+            lecture.cloudError = nil
+        } catch {
+            lecture.cloudError = "\(engine.label): \(error.localizedDescription)"
+            if forReview {
+                lecture.transcriptEngine = TranscriptionEngine.onDevice.rawValue
+                if lecture.reviewStatus == .requested { lecture.reviewPending = true }
+                lecture.uploadedAt = nil
+                try? context.save()
+                await sendPending()
+            }
+        }
+        try? context.save()
+    }
+
     /// Uploads everything LifeOS doesn't have yet (and pending review requests).
     static func sendPending() async {
         let lifeos = LifeOSClient.shared

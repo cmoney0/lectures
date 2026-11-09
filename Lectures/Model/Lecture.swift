@@ -12,6 +12,10 @@ final class Lecture {
     var courseId: String?
     /// Simple class name from the calendar ("Fluids", "Controls", "Materials").
     var courseShort: String?
+    /// Which transcript the review uses: "on-device" or a cloud engine.
+    var transcriptEngine: String?
+    /// Last cloud-transcription problem (shown on the Transcript tab).
+    var cloudError: String?
     var recordedAt: Date
     var durationSec: Double
     /// Timestamped plain text: one "[m:ss] sentence" line per finalized result.
@@ -113,6 +117,29 @@ final class Lecture {
         case .ready: return .done
         case .failed: return .reviewFailed
         }
+    }
+}
+
+/// Settings > Transcription: which engine future lectures go through.
+/// On-device always runs live; a cloud engine re-transcribes the audio after Stop.
+enum TranscriptionEngine: String, CaseIterable, Identifiable {
+    case onDevice = "on-device", openai, assemblyai, deepgram
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .onDevice: "On-device (Apple)"
+        case .openai: "OpenAI"
+        case .assemblyai: "AssemblyAI"
+        case .deepgram: "Deepgram"
+        }
+    }
+
+    static var cloud: [TranscriptionEngine] { [.openai, .assemblyai, .deepgram] }
+
+    static var saved: TranscriptionEngine {
+        get { TranscriptionEngine(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine") ?? "") ?? .onDevice }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "transcriptionEngine") }
     }
 }
 

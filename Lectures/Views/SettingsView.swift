@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var busy = false
     @State private var error: String?
     @State private var options = ReviewOptions.saved
+    @State private var engine = TranscriptionEngine.saved
 
     var body: some View {
         NavigationStack {
@@ -54,8 +55,19 @@ struct SettingsView: View {
                     Text("Used when you stop from the Lock Screen, and preselected after Stop in the app.")
                 }
 
+                Section {
+                    Picker("Transcription", selection: Binding(get: { TranscriptionEngine.saved }, set: { TranscriptionEngine.saved = $0; engine = $0 })) {
+                        ForEach(TranscriptionEngine.allCases) { Text($0.label).tag($0) }
+                    }
+                } header: {
+                    Text("Transcription")
+                } footer: {
+                    Text(engine == .onDevice
+                         ? "Free and offline. The live transcript is always on-device."
+                         : "The live transcript stays on-device; after Stop the audio is also sent to \(engine.label) and Claude reviews that transcript (a few cents per lecture). You can try any engine on a past lecture from its menu: Transcribe with...")
+                }
+
                 Section("Recording") {
-                    LabeledContent("Transcription", value: "On-device (Apple)")
                     Text("Free and offline; audio never leaves your phone, only the text. Start from the Lock Screen / Control Center control, the Action Button (Shortcuts > Record lecture) or Siri: \"Record a lecture in Lectures\".")
                         .font(.m(12)).foregroundStyle(Theme.sub)
                 }

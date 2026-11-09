@@ -13,6 +13,8 @@ struct LectureDetailView: View {
     @State private var redoing = false
     @State private var message: String?
     @State private var confirmDelete = false
+    @State private var cloud: [LifeOSClient.CloudTranscript] = []
+    @State private var source = TranscriptionEngine.onDevice.rawValue
     @Environment(\.dismiss) private var dismiss
 
     private var review: LectureReview? { lecture.review }
@@ -98,20 +100,47 @@ struct LectureDetailView: View {
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
     }
 
+    /// The transcript shown: on-device, or one of the cloud engines' versions.
+    private var shownText: String {
+        if source == TranscriptionEngine.onDevice.rawValue { return lecture.transcript }
+        return cloud.first { $0.engine == source }?.transcript ?? ""
+    }
+
     private var transcriptSection: some View {
         Card {
             HStack {
                 Text("Transcript").font(.m(12, .bold)).foregroundStyle(Theme.sub)
                 Spacer()
-                Button("Copy") { UIPasteboard.general.string = lecture.transcript }.font(.m(12, .bold))
+                Button("Copy") { UIPasteboard.general.string = shownText }.font(.m(12, .bold))
+            }
+            if !cloud.isEmpty {
+                Picker("Source", selection: $source) {
+                    Text("On-device").tag(TranscriptionEngine.onDevice.rawValue)
+                    ForEach(cloud) { t in Text(TranscriptionEngine(rawValue: t.engine)?.label ?? t.engine).tag(t.engine) }
+                }
+                .pickerStyle(.segmented)
+                if let t = cloud.first(where: { $0.engine == source }) {
+                    Text(t.status == "done" ? "\(t.words ?? 0) words" : t.status == "failed" ? "Failed: \(t.error ?? "unknown")" : "Transcribing... pull back in a minute")
+                        .font(.m(12)).foregroundStyle(t.status == "failed" ? Theme.red : Theme.sub)
+                } else {
+                    Text("\(lecture.wordCount) words").font(.m(12)).foregroundStyle(Theme.sub)
+                }
             }
             if let message { Text(message).font(.m(12)).foregroundStyle(Theme.red) }
-            if lecture.transcript.isEmpty {
-                Text("No transcript yet. Use Redo transcript from the menu.").font(.m(14)).foregroundStyle(Theme.sub)
+            if let err = lecture.cloudError { Text(err).font(.m(12)).foregroundStyle(Theme.red) }
+            if shownText.isEmpty {
+                Text(source == TranscriptionEngine.onDevice.rawValue ? "No transcript yet. Use Redo transcript from the menu." : "Not ready yet.")
+                    .font(.m(14)).foregroundStyle(Theme.sub)
             } else {
-                TranscriptText(transcript: lecture.transcript) { seconds in player.play(lecture.audioURL, from: seconds) }
+                TranscriptText(transcript: shownText) { seconds in player.play(lecture.audioURL, from: seconds) }
             }
         }
+        .task(id: tab) { if tab == 3 || review == nil { await loadCloud() } }
+    }
+
+    private func loadCloud() async {
+        guard LifeOSClient.shared.isConnected, let list = try? await LifeOSClient.shared.transcripts(lecture.id) else { return }
+        cloud = list.sorted { $0.engine < $1.engine }
     }
 
     private var menu: some View {
@@ -123,6 +152,18 @@ struct LectureDetailView: View {
             }
             ShareLink(item: ClaudeExport.text(for: lecture)) { Label("Share transcript to Claude", systemImage: "square.and.arrow.up") }
             if lecture.hasAudio {
+                Menu {
+                    ForEach(TranscriptionEngine.cloud) { engine in
+                        Button(engine.label) {
+                            Task {
+                                await Pipeline.cloudTranscribe(lecture, engine: engine, forReview: false)
+                                tab = 3
+                                source = engine.rawValue
+                                await loadCloud()
+                            }
+                        }
+                    }
+                } label: { Label("Transcribe with...", systemImage: "text.bubble") }
                 // shared as <lecture id>.m4a - the id matches LifeOS, so a shared file maps to its transcript
                 ShareLink(item: lecture.audioURL) { Label("Share audio", systemImage: "waveform") }
             }
