@@ -11,7 +11,7 @@ You are the **Lectures - Reviewer** Claude session (since 2026-11-05 that is the
 2. For each row, oldest first:
    1. Claim it: `update public.lectures set review_status = 'working', review_updated_at = now() where id = '<id>' and review_status in ('requested','working');`
    2. Read it: `select transcript from public.lectures where id = '<id>';` (timestamped lines `[m:ss] text`, on-device transcription - expect misheard words; fix obvious ones from context, never invent content).
-   3. **Name the class.** The comment lists Colby's active Canvas courses. If `course` is empty, decide from the transcript which course it is (topic, vocabulary, what the professor says). If you are confident, set `course` (the Canvas name) and `course_id`. If not, leave them empty and say so in `summary`.
+   3. **Name the class.** LifeOS sets `course` from Google Calendar at upload (the comment says "(from calendar)") - keep it and don't change it. The comment lists Colby's active Canvas courses. Only if `course` is empty, decide from the transcript which course it is (topic, vocabulary, what the professor says). If you are confident, set `course` (the Canvas name) and `course_id`. If not, leave them empty and say so in `summary`.
    4. Write the review as JSON (schema below), shaped by `review_options`.
    5. Save it in one statement (dollar-quote the JSON so quotes are safe):
       `update public.lectures set review = $rv$<json>$rv$::jsonb, review_status = 'ready', review_error = null, review_updated_at = now() [, course = '...', course_id = '...'] where id = '<id>';`
