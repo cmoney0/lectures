@@ -35,11 +35,10 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Last TestFlight build: **18** (717e7cf, 2026-11-09, approved by Colby: "can you push changes for my voice recording app and this app aswell?").
+Last TestFlight build: **18** (717e7cf, 2026-11-09 2:04 PM CT, started manually from GitHub Actions - not by a Claude session). Shipped since build 13: Home layout fix, crash alert + red-dot Live Activity, icon-only Lock Screen controls, delete before sending, save-only fix, collapsible class sections + "Fluids 11/9" titles.
 
 Changes since then:
-- Reviews show an "Action items" card first (homework due, exams in red, quizzes, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
-- (nothing yet)
+- Reviews show an "Action items" card first (homework due, exams/quizzes in red, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
 
 ## 2026-11-05 - v1 app
 
