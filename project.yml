@@ -48,6 +48,10 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         # recording timer + Pause / Stop on the Lock Screen and Dynamic Island
         NSSupportsLiveActivities: true
+        # recordings visible in the Files app (On My iPhone > Lectures > Recordings)
+        # so they can be copied to Google Drive for transcription comparisons
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         NSMicrophoneUsageDescription: Lectures records your classes so they can be transcribed.
         NSSpeechRecognitionUsageDescription: Lectures turns your class recordings into text on your iPhone.
     settings:

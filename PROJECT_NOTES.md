@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **18** (717e7cf, 2026-11-09 2:04 PM CT, started manually from GitHub Actions - not by a Claude session). Shipped since build 13: Home layout fix, crash alert + red-dot Live Activity, icon-only Lock Screen controls, delete before sending, save-only fix, collapsible class sections + "Fluids 11/9" titles.
 
 Changes since then:
+- Recordings are visible in the Files app (On My iPhone > Lectures > Recordings) and each lecture's menu has "Share audio" - for copying recordings out (e.g. to Google Drive for the transcription-service comparison).
 - Reviews show an "Action items" card first (homework due, exams/quizzes in red, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
 
 ## 2026-11-05 - v1 app
