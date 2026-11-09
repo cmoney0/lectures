@@ -36,7 +36,8 @@ Every key present; arrays may be empty. Plain text (no markdown) inside strings;
 
 ```json
 {
-  "title": "Short topic title of this lecture, e.g. Entropy and the Second Law",
+  "title": "<Short> <M/D> · <2-3 word topic>, e.g. Fluids 11/9 · Couette Flow",
+  "topic": "2-3 word topic in Title Case, e.g. Couette Flow",
   "course": "Canvas course name you matched, or empty",
   "summary": "2-4 sentences: what this lecture covered and why it matters",
   "sections": [ { "heading": "Topic", "points": ["key idea", "formula: ...", "example: ..."] } ],
@@ -48,6 +49,7 @@ Every key present; arrays may be empty. Plain text (no markdown) inside strings;
 }
 ```
 
+- **Title format (Colby):** `<Short> <M/D> · <Topic>`. Short = the lecture's `course_short` (from the calendar, e.g. Fluids, Controls, Materials). If it is empty, pick a one-word class name yourself and also set `course_short` in the same update. M/D = the recording date in America/Chicago (`recorded_at`). Topic = 2-3 words in Title Case.
 - `examFlags.at` is the transcript timestamp (`m:ss` or `h:mm:ss`) or `null`. Include anything the professor says is important, on an exam, due, or assigned.
 - `quiz.answer` is the 0-based index into `choices`.
 - Keep it accurate to the lecture; if the transcript is too short or empty, write what you can and say so in `summary`.
