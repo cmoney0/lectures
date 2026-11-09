@@ -255,6 +255,11 @@ struct LectureReview: Codable {
     var flashcards: [Card]?
     var quiz: [Question]?
     var followUps: [String]?
+    /// Things to do / prepare for that the professor mentioned; also sent to
+    /// LOS for Colby to approve (REVIEWER.md step 7).
+    var actionItems: [Action]?
+
+    struct Action: Codable, Hashable { var kind: String?; var text: String?; var date: String?; var time: String?; var proposal: String? }
 }
 
 struct TranscriptPiece: Sendable {

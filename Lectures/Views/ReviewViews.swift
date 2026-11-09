@@ -8,6 +8,13 @@ struct ReviewNotesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let actions = review.actionItems, !actions.isEmpty {
+                Card {
+                    Label("Action items", systemImage: "checklist").font(.m(13, .heavy)).foregroundStyle(Theme.accent)
+                    ForEach(actions, id: \.self) { item in ActionRow(item: item) }
+                    Text("Sent to LOS to review with you.").font(.m(11)).foregroundStyle(Theme.sub)
+                }
+            }
             if let summary = review.summary, !summary.isEmpty {
                 Card { Text(summary).font(.m(15)).foregroundStyle(Theme.text) }
             }
@@ -174,6 +181,9 @@ enum ReviewPDF {
         <h1>\(esc(lecture.displayTitle))</h1>
         <p>\(esc(review.summary))</p>
         """
+        if let actions = review.actionItems, !actions.isEmpty {
+            h += "<div class=\"flag\"><b>Action items</b><ul>" + actions.map { "<li>\(esc($0.text))\($0.date.map { " - \(esc($0))" } ?? "")</li>" }.joined() + "</ul></div>"
+        }
         if let flags = review.examFlags, !flags.isEmpty {
             h += "<h2>Likely on the exam</h2><div class=\"flag\"><ul>" + flags.map { "<li>\(esc($0.text))\($0.at.map { " <span class=\"meta\">(\(esc($0)))</span>" } ?? "")</li>" }.joined() + "</ul></div>"
         }
@@ -272,4 +282,48 @@ enum ReviewPDF {
         UIGraphicsEndPDFContext()
         return data as Data
     }
+}
+
+/// One action item: icon by kind, what, and when.
+struct ActionRow: View {
+    let item: LectureReview.Action
+
+    private var icon: String {
+        switch item.kind ?? "" {
+        case "exam": "exclamationmark.triangle.fill"
+        case "quiz": "questionmark.circle.fill"
+        case "reading": "book.fill"
+        case "info": "info.circle.fill"
+        default: "checkmark.circle"
+        }
+    }
+
+    private var isTest: Bool { item.kind == "exam" || item.kind == "quiz" }
+
+    private var when: String? {
+        guard let d = item.date, let date = ISO8601DateFormatter.dayOnly.date(from: d) else { return item.date }
+        var out = date.formatted(.dateTime.weekday(.abbreviated).month(.defaultDigits).day())
+        if let t = item.time, !t.isEmpty { out += " " + t }
+        return out
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundStyle(isTest ? Theme.red : Theme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.text ?? "").font(.m(14, .semibold)).foregroundStyle(Theme.text)
+                if let when { Text(when).font(.m(12, .bold)).foregroundStyle(isTest ? Theme.red : Theme.sub) }
+            }
+        }
+    }
+}
+
+extension ISO8601DateFormatter {
+    /// "2026-11-13"
+    static let dayOnly: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]
+        f.timeZone = TimeZone(identifier: "America/Chicago")
+        return f
+    }()
 }

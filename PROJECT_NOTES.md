@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **18** (717e7cf, 2026-11-09, approved by Colby: "can you push changes for my voice recording app and this app aswell?").
 
 Changes since then:
+- Reviews show an "Action items" card first (homework due, exams in red, quizzes, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
 - (nothing yet)
 
 ## 2026-11-05 - v1 app
@@ -161,3 +162,10 @@ Changes since then:
 
 ### Files Touched
 - `PROJECT_NOTES.md` (Next Build Queue cleared).
+
+## 2026-11-09 - Action items -> LOS
+
+### What Changed
+- Colby: lectures should surface things to add to LifeOS (homework, exams, quizzes...) and LOS should ping him to approve them, e.g. make the class calendar event red with EXAM/QUIZ first.
+- REVIEWER.md step 7 + `actionItems` schema (kind task/exam/quiz/reading/deadline/info, date/time America/Chicago, `proposal` = exact LifeOS task or calendar edit). When there are items the Reviewer posts ONE `Claude → LOS:` comment on lifeos PR #634 and adds a dated line to LOS-NOTES.md "Claude → LOS" (lifeos main via PR). LOS reviews with Colby; tasks go in through its agent link, calendar edits come back as a LOS note for Claude (Google Calendar connector). Calendar convention: exam/quiz = class event retitled `EXAM · <Short>` / `QUIZ · <Short>`, colored red.
+- App: `LectureReview.actionItems` + `ActionRow` card at the top of Review (exams/quizzes red), PDF lists them.
