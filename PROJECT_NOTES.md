@@ -35,15 +35,10 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
+Last TestFlight build: **18** (717e7cf, 2026-11-09, approved by Colby: "can you push changes for my voice recording app and this app aswell?").
 
 Changes since then:
-- Home: finished lectures in collapsible class sections named by the short calendar class (Fluids, Controls, Materials) with a count; open sections are remembered. Titles read "Fluids 11/9 · Couette Flow" ("Fluids 11/9" while the review is on its way).
-- Lock Screen Live Activity: no transcript line; one row with the dot, state and icon-only round buttons (pause/play, stop).
-- After Stop: "Delete recording" (confirm) next to "Save only - no review". Fixed: "Save only" sometimes still sent to Claude.
-- Live Activity: just a red recording dot (no timer) on the Lock Screen and Dynamic Island; gray when paused; "Recording stopped" with a hollow dot if the app dies.
-- Crash alert: if the app dies while recording, a "Lectures stopped recording" notification arrives within ~75 s; tapping it reopens the app and continues the same lecture.
-- Home layout fix: Record button, in-progress cards and class groups share one width and 16 pt gutter; tighter section spacing.
+- (nothing yet)
 
 ## 2026-11-05 - v1 app
 
@@ -149,3 +144,20 @@ Changes since then:
 ### What Changed
 - `Lecture.courseShort` (synced from LifeOS `courseShort`, set by the server from the calendar title). `displayTitle`: review title ("Fluids 11/9 · Couette Flow", written by the Reviewer) else "Fluids 11/9" else the old title. `sectionName` groups Home by the short name.
 - Home class sections collapse: `ClassHeader` (chevron, name, count) toggles; expanded set in `@AppStorage("expandedClasses")`; all start collapsed.
+
+## 2026-11-09 - TestFlight build 18 shipped (approved)
+
+### What Changed
+- Uploaded **build 18** from main 717e7cf (Colby approved: "can you push changes for my voice recording app and this app aswell?"). Shipped:
+- Home: finished lectures in collapsible class sections named by the short calendar class (Fluids, Controls, Materials) with a count; open sections are remembered. Titles read "Fluids 11/9 · Couette Flow" ("Fluids 11/9" while the review is on its way).
+- Lock Screen Live Activity: no transcript line; one row with the dot, state and icon-only round buttons (pause/play, stop).
+- After Stop: "Delete recording" (confirm) next to "Save only - no review". Fixed: "Save only" sometimes still sent to Claude.
+- Live Activity: just a red recording dot (no timer) on the Lock Screen and Dynamic Island; gray when paused; "Recording stopped" with a hollow dot if the app dies.
+- Crash alert: if the app dies while recording, a "Lectures stopped recording" notification arrives within ~75 s; tapping it reopens the app and continues the same lecture.
+- Home layout fix: Record button, in-progress cards and class groups share one width and 16 pt gutter; tighter section spacing.
+
+### Tests/Verification
+- iOS workflow run 42689377749 (testflight: true) green: archive succeeded, "Uploaded build 18".
+
+### Files Touched
+- `PROJECT_NOTES.md` (Next Build Queue cleared).
