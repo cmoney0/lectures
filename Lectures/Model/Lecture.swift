@@ -10,6 +10,8 @@ final class Lecture {
     /// Filled in by Claude from the transcript (the app never asks).
     var courseName: String
     var courseId: String?
+    /// Simple class name from the calendar ("Fluids", "Controls", "Materials").
+    var courseShort: String?
     var recordedAt: Date
     var durationSec: Double
     /// Timestamped plain text: one "[m:ss] sentence" line per finalized result.
@@ -61,9 +63,20 @@ final class Lecture {
     }
 
     /// Headline: Claude's topic title once the review exists.
+    /// "Fluids 11/9 · Couette Flow" once Claude has reviewed it,
+    /// "Fluids 11/9" while it's on the way.
     var displayTitle: String {
         if let t = review?.title, !t.isEmpty { return t }
+        if let short = courseShort, !short.isEmpty {
+            return "\(short) \(recordedAt.formatted(.dateTime.month(.defaultDigits).day()))"
+        }
         return title.isEmpty ? "Lecture" : title
+    }
+
+    /// Home section: the short class name when known.
+    var sectionName: String {
+        if let short = courseShort, !short.isEmpty { return short }
+        return displayCourse.isEmpty ? "Unsorted" : displayCourse
     }
 
     var displayCourse: String {

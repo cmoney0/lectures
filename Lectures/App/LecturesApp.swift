@@ -230,6 +230,7 @@ enum Pipeline {
     private static func apply(_ row: LifeOSClient.ServerLecture, to lecture: Lecture) {
         if let course = row.course, !course.isEmpty { lecture.courseName = course }
         if let cid = row.courseId, !cid.isEmpty { lecture.courseId = cid }
+        if let short = row.courseShort, !short.isEmpty { lecture.courseShort = short }
         if let status = row.reviewStatus.flatMap(ReviewStatus.init(rawValue:)) { lecture.reviewStatus = status }
         lecture.reviewError = row.reviewError
         if let review = row.review, let data = try? JSONEncoder().encode(review) {

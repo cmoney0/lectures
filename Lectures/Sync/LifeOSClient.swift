@@ -78,6 +78,7 @@ final class LifeOSClient {
         var id: String
         var course: String?
         var courseId: String?
+        var courseShort: String?
         var reviewStatus: String?
         var reviewError: String?
         var review: LectureReview?
@@ -88,13 +89,14 @@ final class LifeOSClient {
         var transcript: String?
         var engine: String?
 
-        enum CodingKeys: String, CodingKey { case id, course, courseId, reviewStatus, reviewError, review, title, recordedAt, durationSec, transcript, engine }
+        enum CodingKeys: String, CodingKey { case id, course, courseId, courseShort, reviewStatus, reviewError, review, title, recordedAt, durationSec, transcript, engine }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             id = try c.decode(String.self, forKey: .id)
             course = try? c.decodeIfPresent(String.self, forKey: .course)
             courseId = try? c.decodeIfPresent(String.self, forKey: .courseId)
+            courseShort = try? c.decodeIfPresent(String.self, forKey: .courseShort)
             reviewStatus = try? c.decodeIfPresent(String.self, forKey: .reviewStatus)
             reviewError = try? c.decodeIfPresent(String.self, forKey: .reviewError)
             // a slightly off review must never break the whole sync

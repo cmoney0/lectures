@@ -10,12 +10,21 @@ struct HomeView: View {
     @Query(sort: \Lecture.recordedAt, order: .reverse) private var lectures: [Lecture]
     @State private var showSettings = false
     @State private var pendingDelete: Lecture?
+    /// Class sections start collapsed; the open ones are remembered.
+    @AppStorage("expandedClasses") private var expandedRaw = ""
+    private var expanded: Set<String> { Set(expandedRaw.split(separator: "\n").map(String.init)) }
+
+    private func toggle(_ name: String) {
+        var set = expanded
+        if set.contains(name) { set.remove(name) } else { set.insert(name) }
+        withAnimation(.snappy) { expandedRaw = set.sorted().joined(separator: "\n") }
+    }
 
     private var inProgress: [Lecture] { lectures.filter { $0.stage != .done && $0.stage != .saved && $0.stage != .recording } }
     private var finished: [Lecture] { lectures.filter { $0.stage == .done || $0.stage == .saved } }
 
     private var classes: [(String, [Lecture])] {
-        let grouped = Dictionary(grouping: finished) { $0.displayCourse.isEmpty ? "Unsorted" : $0.displayCourse }
+        let grouped = Dictionary(grouping: finished) { $0.sectionName }
         return grouped.sorted { ($0.value.first?.recordedAt ?? .distantPast) > ($1.value.first?.recordedAt ?? .distantPast) }
     }
 
@@ -58,6 +67,7 @@ struct HomeView: View {
 
             ForEach(classes, id: \.0) { course, items in
                 Section {
+                    if expanded.contains(course) {
                     ForEach(items) { lecture in
                         ZStack {
                             NavigationLink(value: lecture) { EmptyView() }.opacity(0)
@@ -69,8 +79,9 @@ struct HomeView: View {
                         .swipeActions(edge: .trailing) { swipeDelete(lecture) }
                         .contextMenu { deleteButton(lecture) }
                     }
+                    }
                 } header: {
-                    SectionTitle(course)
+                    ClassHeader(name: course, count: items.count, open: expanded.contains(course)) { toggle(course) }
                 }
             }
         }
@@ -249,5 +260,34 @@ struct ReviewRow: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
         .contentShape(Rectangle())
+    }
+}
+
+/// Tappable class header: chevron, short class name, lecture count.
+struct ClassHeader: View {
+    let name: String
+    let count: Int
+    let open: Bool
+    var toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .rotationEffect(.degrees(open ? 90 : 0))
+                Text(name).font(.m(16, .heavy)).foregroundStyle(Theme.text)
+                Spacer()
+                Text("\(count)").font(.m(13, .bold)).foregroundStyle(Theme.sub)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Theme.card, in: Capsule())
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .textCase(nil)
+        .listRowInsets(EdgeInsets())
     }
 }

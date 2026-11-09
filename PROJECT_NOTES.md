@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
 
 Changes since then:
+- Home: finished lectures in collapsible class sections named by the short calendar class (Fluids, Controls, Materials) with a count; open sections are remembered. Titles read "Fluids 11/9 · Couette Flow" ("Fluids 11/9" while the review is on its way).
 - Lock Screen Live Activity: no transcript line; one row with the dot, state and icon-only round buttons (pause/play, stop).
 - After Stop: "Delete recording" (confirm) next to "Save only - no review". Fixed: "Save only" sometimes still sent to Claude.
 - Live Activity: just a red recording dot (no timer) on the Lock Screen and Dynamic Island; gray when paused; "Recording stopped" with a hollow dot if the app dies.
@@ -142,3 +143,9 @@ Changes since then:
 - Bug: "Just save, no review" still sent the lecture to Claude. Dismissing the options sheet cancels its `.task`; the countdown's `try? await Task.sleep` swallowed the cancellation, so the loop ran down instantly and called `send()`. Now the loop returns on cancellation and every action sets `decided` first (send/save/delete are one-shot).
 - Options sheet: "Save only - no review" and "Delete recording" (confirm; deletes after the sheet closes).
 - Live Activity: Lock Screen is one row (dot, state, icon-only circular pause/play + stop), no transcript; Dynamic Island expanded shows the dot/state and the same icon buttons.
+
+## 2026-11-09 - Short titles + collapsible class sections
+
+### What Changed
+- `Lecture.courseShort` (synced from LifeOS `courseShort`, set by the server from the calendar title). `displayTitle`: review title ("Fluids 11/9 · Couette Flow", written by the Reviewer) else "Fluids 11/9" else the old title. `sectionName` groups Home by the short name.
+- Home class sections collapse: `ClassHeader` (chevron, name, count) toggles; expanded set in `@AppStorage("expandedClasses")`; all start collapsed.
