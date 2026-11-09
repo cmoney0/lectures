@@ -1,9 +1,12 @@
 import AppIntents
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct LecturesApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -12,6 +15,23 @@ struct LecturesApp: App {
                 .tint(Theme.accent)
         }
         .modelContainer(Store.container)
+    }
+}
+
+/// Tapping the "stopped recording" notification resumes the lecture.
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        guard response.notification.request.identifier == CrashWatchdog.id else { return }
+        await Pipeline.resumeLatestInterrupted()
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
     }
 }
 
@@ -46,6 +66,8 @@ struct RootView: View {
         .sheet(item: $recorder.awaitingOptions) { lecture in ReviewOptionsSheet(lecture: lecture) }
         .task {
             await LectureRecorder.endOrphanedActivities()
+            // a crash's watchdog that hasn't fired yet: the Continue card covers it now
+            if !recorder.isRecording { CrashWatchdog.cancel() }
             Pipeline.recoverInterrupted(except: recorder.current?.id)
             await Pipeline.sendPending()
             await Pipeline.syncFromLifeOS()
@@ -76,6 +98,19 @@ enum Pipeline {
             lecture.status = lecture.status == .finishing ? .ready : .interrupted
         }
         try? context.save()
+    }
+
+    /// After a crash: pick the newest interrupted lecture back up.
+    static func resumeLatestInterrupted() async {
+        let recorder = LectureRecorder.shared
+        guard !recorder.isRecording else { return }
+        recoverInterrupted(except: nil)
+        let interrupted = LectureStatus.interrupted.rawValue
+        var latest = FetchDescriptor<Lecture>(predicate: #Predicate { $0.statusRaw == interrupted },
+                                              sortBy: [SortDescriptor(\.recordedAt, order: .reverse)])
+        latest.fetchLimit = 1
+        guard let lecture = try? context.fetch(latest).first else { return }
+        await recorder.start(resuming: lecture)
     }
 
     static func requestReview(for lecture: Lecture, options: ReviewOptions) {

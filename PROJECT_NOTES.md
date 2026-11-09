@@ -38,6 +38,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **13** (d2ab26a, 2026-11-05, approved by Colby: "okay build it"). Shipped since build 7: multi-select review types, delete (swipe / menu / long-press, whole lecture or audio only), recording time on Home rows, iPad app + LifeOS sync + in-depth study guides (slide figures, fill-ins, problems + Pencil scratchpad, PDF).
 
 Changes since then:
+- Live Activity: just a red recording dot (no timer) on the Lock Screen and Dynamic Island; gray when paused; "Recording stopped" with a hollow dot if the app dies.
+- Crash alert: if the app dies while recording, a "Lectures stopped recording" notification arrives within ~75 s; tapping it reopens the app and continues the same lecture.
 - Home layout fix: Record button, in-progress cards and class groups share one width and 16 pt gutter; tighter section spacing.
 
 ## 2026-11-05 - v1 app
@@ -120,3 +122,14 @@ Changes since then:
 ### What Changed
 - Build 13's List Home put the Record button, in-progress cards and class rows at three different widths (16 pt row insets inside the inset-grouped margin vs zero) with big section gaps. Now every row has zero horizontal insets, the list has one 16 pt horizontal content margin, section spacing 14, headers aligned to the cards.
 - The "Advancements in AI (sample review)" card stuck at Waiting was timing: the server flipped it to ready at 21:34:31, the minute of the screenshot; the app's 15 s poll / pull-to-refresh picks it up.
+
+## 2026-11-09 - Crash alert + red-dot Live Activity
+
+### What Changed
+- Colby lost ~15 min of a lecture: the app crashed and the Live Activity kept looking like it was recording. An app can't notify at the moment it dies, so `LectureRecorder.armWatchdog` re-schedules a local notification (`CrashWatchdog`, id `recording-watchdog`) 75 s out every 20 s while recording; it is cancelled on Stop/Pause and at launch. If the process dies the re-scheduling stops and the notification fires. Tapping it -> `AppDelegate` -> `Pipeline.resumeLatestInterrupted()` (marks the lecture interrupted and Continue-records it; audio is chunked so <=60 s is lost before the crash).
+- Live Activity content now carries `staleDate` = last heartbeat + 90 s (none while paused); the widget shows "Recording stopped" when `context.isStale`.
+- Live Activity shows only a red dot - no timer anywhere (compact trailing is empty).
+- Notification permission is asked once, at the first recording.
+### Design/Workflow Notes
+- A phone call pauses recording and can suspend the app, so a call longer than ~75 s may also trigger the alert - acceptable (recording really did pause).
+- The crash itself is not diagnosed yet: TestFlight crash reports (App Store Connect > TestFlight > Crashes, or the TestFlight app's feedback) would show where.

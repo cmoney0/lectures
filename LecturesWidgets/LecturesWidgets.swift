@@ -24,57 +24,94 @@ struct RecordLectureControl: ControlWidget {
     }
 }
 
-/// Recording timer + Pause / Stop on the Lock Screen and in the Dynamic Island.
+/// Recording indicator + Pause / Stop on the Lock Screen and in the Dynamic Island.
+/// Just a red dot - no timer (Colby). If the app stops heartbeating (crash),
+/// the activity goes stale and says so instead of looking like it's recording.
 struct LectureLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LectureActivityAttributes.self) { context in
-            LockScreenView(state: context.state)
+            LockScreenView(state: context.state, stale: context.isStale)
                 .activityBackgroundTint(LectureColors.bg)
                 .activitySystemActionForegroundColor(LectureColors.text)
         } dynamicIsland: { context in
-            DynamicIsland {
+            let mode = Mode(state: context.state, stale: context.isStale)
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label { Text(context.state.pausedElapsed == nil ? "REC" : "PAUSED") } icon: { Image(systemName: "waveform") }
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(context.state.pausedElapsed == nil ? LectureColors.red : LectureColors.sub)
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    TimerText(state: context.state).font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
+                    HStack(spacing: 6) {
+                        RecDot(mode: mode, size: 10)
+                        Text(mode.label).font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(mode.color)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(context.state.lastLine).font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
-                        Buttons(paused: context.state.pausedElapsed != nil)
+                        Text(mode == .stopped ? "Open Lectures to continue this lecture." : context.state.lastLine)
+                            .font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
+                        if mode != .stopped { Buttons(paused: mode == .paused) }
                     }
                 }
             } compactLeading: {
-                Image(systemName: context.state.pausedElapsed == nil ? "record.circle" : "pause.circle")
-                    .foregroundStyle(context.state.pausedElapsed == nil ? LectureColors.red : LectureColors.sub)
+                RecDot(mode: mode, size: 10)
             } compactTrailing: {
-                TimerText(state: context.state).font(.system(size: 13, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .frame(maxWidth: 52)
+                EmptyView()
             } minimal: {
-                Image(systemName: "record.circle").foregroundStyle(LectureColors.red)
+                RecDot(mode: mode, size: 10)
             }
+        }
+    }
+}
+
+private enum Mode: Equatable {
+    case recording, paused, stopped
+
+    init(state: LectureActivityAttributes.ContentState, stale: Bool) {
+        self = stale ? .stopped : (state.pausedElapsed != nil ? .paused : .recording)
+    }
+
+    var label: String {
+        switch self {
+        case .recording: "Recording lecture"
+        case .paused: "Paused"
+        case .stopped: "Recording stopped"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .recording: LectureColors.red
+        case .paused, .stopped: LectureColors.sub
+        }
+    }
+}
+
+/// The red recording dot (gray when paused, hollow when stopped).
+private struct RecDot: View {
+    let mode: Mode
+    let size: CGFloat
+
+    var body: some View {
+        if mode == .stopped {
+            Circle().stroke(LectureColors.sub, lineWidth: 2).frame(width: size, height: size)
+        } else {
+            Circle().fill(mode.color).frame(width: size, height: size)
         }
     }
 }
 
 private struct LockScreenView: View {
     let state: LectureActivityAttributes.ContentState
+    let stale: Bool
 
     var body: some View {
+        let mode = Mode(state: state, stale: stale)
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(state.pausedElapsed == nil ? "Recording lecture" : "Paused", systemImage: "waveform")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(state.pausedElapsed == nil ? LectureColors.accent : LectureColors.sub)
+            HStack(spacing: 8) {
+                RecDot(mode: mode, size: 12)
+                Text(mode.label).font(.system(size: 15, weight: .heavy, design: .rounded)).foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
                 Spacer()
-                TimerText(state: state).font(.system(size: 22, weight: .bold, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(LectureColors.text)
             }
-            Text(state.lastLine).font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
-            Buttons(paused: state.pausedElapsed != nil)
+            Text(mode == .stopped ? "The app closed. Open Lectures to continue this lecture." : state.lastLine)
+                .font(.system(size: 13)).foregroundStyle(LectureColors.sub).lineLimit(2)
+            if mode != .stopped { Buttons(paused: mode == .paused) }
         }
         .padding(16)
     }
@@ -97,23 +134,5 @@ private struct Buttons: View {
             .tint(LectureColors.red)
         }
         .buttonStyle(.borderedProminent)
-    }
-}
-
-/// Counts up live while recording; frozen while paused.
-private struct TimerText: View {
-    let state: LectureActivityAttributes.ContentState
-
-    var body: some View {
-        if let paused = state.pausedElapsed {
-            Text(Self.format(paused))
-        } else {
-            Text(timerInterval: state.startedAt...Date.distantFuture, countsDown: false)
-        }
-    }
-
-    static func format(_ seconds: Double) -> String {
-        let s = Int(seconds), h = s / 3600, m = (s % 3600) / 60, sec = s % 60
-        return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
     }
 }

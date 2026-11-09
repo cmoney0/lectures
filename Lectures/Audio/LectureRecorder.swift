@@ -3,6 +3,7 @@ import AVFoundation
 import Observation
 import SwiftData
 import UIKit
+import UserNotifications
 
 /// Drives one recording: audio session, the mic pipeline, the live transcript,
 /// the Live Activity, and saving it all into the Lecture as it goes.
@@ -32,6 +33,7 @@ final class LectureRecorder {
     private var observers: [NSObjectProtocol] = []
     private var activity: Activity<LectureActivityAttributes>?
     private var lastActivityUpdate = Date.distantPast
+    private var watchdog: Task<Void, Never>?
 
     private var context: ModelContext { Store.container.mainContext }
 
@@ -50,6 +52,7 @@ final class LectureRecorder {
         defer { isStarting = false }
         errorMessage = nil
 
+        await CrashWatchdog.requestPermission()
         guard await AVAudioApplication.requestRecordPermission() else {
             errorMessage = "Microphone access is off. Turn it on in Settings > Lectures."
             return
@@ -114,6 +117,7 @@ final class LectureRecorder {
         current = target
         observeSession()
         startActivity(title: target.title)
+        armWatchdog()
     }
 
     // MARK: pause
@@ -125,12 +129,15 @@ final class LectureRecorder {
                 try AVAudioSession.sharedInstance().setActive(true)
                 try pipeline.resume()
                 isPaused = false
+                armWatchdog()
             } catch {
                 errorMessage = "Couldn't resume: \(error.localizedDescription)"
             }
         } else {
             pipeline.pause()
             isPaused = true
+            // a paused app may be suspended - that's not a crash
+            disarmWatchdog()
             try? context.save()
         }
         updateActivity(force: true)
@@ -147,6 +154,7 @@ final class LectureRecorder {
         defer { UIApplication.shared.endBackgroundTask(task) }
 
         stopObserving()
+        disarmWatchdog()
         pipeline.stop()
         lecture.durationSec = elapsed
         lecture.status = .finishing
@@ -228,14 +236,42 @@ final class LectureRecorder {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         activity = try? Activity.request(
             attributes: LectureActivityAttributes(title: title),
-            content: ActivityContent(state: activityState(), staleDate: nil))
+            content: ActivityContent(state: activityState(), staleDate: staleDate))
     }
 
     private func updateActivity(force: Bool) {
         guard let activity, force || Date().timeIntervalSince(lastActivityUpdate) > 20 else { return }
         lastActivityUpdate = Date()
         let state = activityState()
-        Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
+        let stale = staleDate
+        Task { await activity.update(ActivityContent(state: state, staleDate: stale)) }
+    }
+
+    /// While recording, the Live Activity goes stale ~90 s after the app's last
+    /// heartbeat - so if the app dies it shows "Recording stopped" instead of
+    /// pretending to record.
+    private var staleDate: Date? { isPaused ? nil : Date().addingTimeInterval(90) }
+
+    // MARK: crash watchdog (Colby lost 15 min to a silent crash, 2026-11-09)
+
+    /// Every 20 s: push the "stopped recording" notification another 75 s out
+    /// and refresh the Live Activity's stale date. If the app is killed, the
+    /// pushes stop and the notification fires.
+    private func armWatchdog() {
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                CrashWatchdog.schedule(in: 75)
+                self?.updateActivity(force: true)
+                try? await Task.sleep(for: .seconds(20))
+            }
+        }
+    }
+
+    private func disarmWatchdog() {
+        watchdog?.cancel()
+        watchdog = nil
+        CrashWatchdog.cancel()
     }
 
     private func endActivity() async {
@@ -272,5 +308,29 @@ final class LectureRecorder {
     private func stopObserving() {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
+    }
+}
+
+/// The "app stopped recording" notification (see LectureRecorder.armWatchdog).
+enum CrashWatchdog {
+    static let id = "recording-watchdog"
+
+    static func requestPermission() async {
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+    }
+
+    static func schedule(in seconds: TimeInterval) {
+        let content = UNMutableNotificationContent()
+        content.title = "Lectures stopped recording"
+        content.body = "The app closed while recording. Tap to resume this lecture."
+        content.sound = .default
+        content.interruptionLevel = .active
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        // same id each time, so this replaces the previous one
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+    }
+
+    static func cancel() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
     }
 }
