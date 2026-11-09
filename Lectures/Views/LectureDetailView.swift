@@ -122,8 +122,9 @@ struct LectureDetailView: View {
                 }
             }
             ShareLink(item: ClaudeExport.text(for: lecture)) { Label("Share transcript to Claude", systemImage: "square.and.arrow.up") }
-            if lecture.hasAudio, let audio = AudioExport.file(for: lecture) {
-                ShareLink(item: audio) { Label("Share audio", systemImage: "waveform") }
+            if lecture.hasAudio {
+                // shared as <lecture id>.m4a - the id matches LifeOS, so a shared file maps to its transcript
+                ShareLink(item: lecture.audioURL) { Label("Share audio", systemImage: "waveform") }
             }
             Button { recorder.awaitingOptions = lecture } label: {
                 Label(review == nil ? "Ask Claude for a review" : "Redo review", systemImage: "sparkles")
@@ -239,17 +240,5 @@ final class LecturePlayer {
     func stop() {
         player?.stop()
         isPlaying = false
-    }
-}
-
-/// The recording as a nicely named .m4a for sharing ("Fluids 11-9 · Couette Flow.m4a").
-enum AudioExport {
-    @MainActor
-    static func file(for lecture: Lecture) -> URL? {
-        let name = lecture.displayTitle.replacingOccurrences(of: "/", with: "-")
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).m4a")
-        try? FileManager.default.removeItem(at: url)
-        do { try FileManager.default.copyItem(at: lecture.audioURL, to: url) } catch { return nil }
-        return url
     }
 }
