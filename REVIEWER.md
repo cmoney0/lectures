@@ -16,6 +16,10 @@ You are the **Lectures - Reviewer** Claude session (since 2026-11-05 that is the
    5. Save it in one statement (dollar-quote the JSON so quotes are safe):
       `update public.lectures set review = $rv$<json>$rv$::jsonb, review_status = 'ready', review_error = null, review_updated_at = now() [, course = '...', course_id = '...'] where id = '<id>';`
    6. On any failure: `review_status = 'failed', review_error = '<short reason>'`.
+   7. **Action items -> LOS (Colby, 2026-11-09).** If the review has any `actionItems`, tell LOS (Colby's Grok assistant) so it can review them with Colby and push the approved ones:
+      - ONE comment on `cmoney0/lifeos` PR #634 (the LOS inbox; never merge/close it) starting `Claude → LOS:` - e.g. `Claude → LOS: Action items from Materials 11/9 - please review with Colby:` then one line per item: what + when + the exact proposed change (`Add task "MATL HW 7 (Ch 8)" to School, due Fri 11/13 23:59` / `Calendar: Fri 11/13 Materials event -> title "EXAM · Materials", color red (Claude does this once approved)`). End with the lecture id.
+      - A dated line at the top of the `## Claude → LOS` section of `LOS-NOTES.md` in cmoney0/lifeos (newest first): `- YYYY-MM-DD · Lecture action items (Materials 11/9): HW 7 due Fri 11/13; quiz soon (date TBD).` Land it on lifeos `main` the usual way (working branch -> PR -> merge). Questions start with `Q:` (e.g. `Q: When is the Fluids exam?`).
+      - Skip both when there are no action items. Don't repeat items already sent for an earlier lecture.
 3. Stop. The app polls LifeOS and shows the review as soon as the row is `ready`.
 
 ## Options (`review_options`)
@@ -45,13 +49,18 @@ Every key present; arrays may be empty. Plain text (no markdown) inside strings;
   "examFlags": [ { "text": "Professor said this will be on the midterm: ...", "at": "41:10" } ],
   "flashcards": [ { "front": "Question or term", "back": "Answer" } ],
   "quiz": [ { "question": "...", "choices": ["A", "B", "C", "D"], "answer": 2, "explanation": "Why C is right" } ],
-  "followUps": ["Things to look up or ask the professor about"]
+  "followUps": ["Things to look up or ask the professor about"],
+  "actionItems": [
+    { "kind": "task", "text": "Homework 7 (Chapter 8) due", "date": "2026-11-13", "time": "23:59", "proposal": "Add task \"MATL HW 7 (Ch 8)\" to School, due Fri 11/13 23:59" },
+    { "kind": "exam", "text": "Exam on Chapters 7-8", "date": "2026-11-20", "time": null, "proposal": "Calendar: Fri 11/20 Materials event -> title \"EXAM · Materials\", color red" }
+  ]
 }
 ```
 
 - **Title format (Colby):** `<Short> <M/D> · <Topic>`. Short = the lecture's `course_short` (from the calendar, e.g. Fluids, Controls, Materials). If it is empty, pick a one-word class name yourself and also set `course_short` in the same update. M/D = the recording date in America/Chicago (`recorded_at`). Topic = 2-3 words in Title Case.
 - `examFlags.at` is the transcript timestamp (`m:ss` or `h:mm:ss`) or `null`. Include anything the professor says is important, on an exam, due, or assigned.
 - `quiz.answer` is the 0-based index into `choices`.
+- `actionItems`: everything Colby must DO or prepare for that the professor mentioned - homework/project due dates, exams, quizzes, readings, labs, office-hour or room changes, class cancellations. `kind` = task | exam | quiz | reading | deadline | info. `date`/`time` in America/Chicago (YYYY-MM-DD / HH:MM, null if unknown - resolve "Friday" against the recording date). `proposal` = the exact change for LOS/Colby to approve: a LifeOS task (title, list School, due) or a calendar edit. **Calendar convention:** exams and quizzes are the class's calendar event retitled to start with `EXAM` or `QUIZ` (e.g. `EXAM · Fluids`) and colored red. Empty array when nothing actionable was said.
 - Keep it accurate to the lecture; if the transcript is too short or empty, write what you can and say so in `summary`.
 
 ## The in-depth study guide (`guide` in `types`)
