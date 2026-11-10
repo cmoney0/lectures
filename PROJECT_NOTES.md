@@ -202,3 +202,18 @@ Changes since then:
 
 ### Tests/Verification
 - iOS compile on push (f4546d5).
+
+## 2026-11-10 - Review A/B: on-device vs AssemblyAI transcript (5 lectures)
+
+### What Changed
+- Wrote a fresh v2 review from the AssemblyAI transcript for all 5 lectures (blind, same REVIEWER.md prompt and options) and compared each to v1 (on-device). Controls 11/9 got both v1 and v2 today. Comparison files were scratch only.
+
+### Findings
+- Concepts, equations and course terms: the same in both. Claude repairs garbled on-device text well ("native situations" -> Navier-Stokes, "sharpie / happy test" -> Charpy, "KRC man's life" -> K(r - y)).
+- What it cannot repair is information the on-device transcript lost outright: Fluids 11/9 HW 4 announcement (v1 missed it entirely), Fluids exam scope, Controls 11/9 "Fourier transforms are in the homework", Controls 11/6 pole -1/2 heard as -5 (v1 built a wrong quiz question on it), Materials "practice for the quiz" and "grades Friday".
+- Verdicts: 1 material (Fluids 11/9), 3 minor, 1 none-minor. Cloud lost a few small details on-device kept (closing transform list, "memorize these assumptions").
+- 3 of 5 AssemblyAI rows were still giant speaker turns in the table (no usable timestamps) -> lifeos PR #719 re-splits them on the next `?full` sync.
+- Deepgram: 0-550 words on 4 of 5 lectures even with the words-based parser (Materials 3,700 OK) - not usable; lifeos PR #718 skips auto-reviews for such transcripts.
+
+### Recommendation
+- AssemblyAI as the default engine (about $0.15-0.45/hr, roughly $15-45 a semester, mostly inside the free credit); on-device stays the live view and fallback. Drop Deepgram.
