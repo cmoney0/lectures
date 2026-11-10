@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
 
 Changes since then:
+- Every lecture goes through AssemblyAI after Stop by default (new setting key, so old on-device picks reset); Deepgram removed; menu item is now "Transcribe with AssemblyAI" (e2af8eb).
 - Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
 
 ## 2026-11-05 - v1 app
@@ -217,3 +218,16 @@ Changes since then:
 
 ### Recommendation
 - AssemblyAI as the default engine (about $0.15-0.45/hr, roughly $15-45 a semester, mostly inside the free credit); on-device stays the live view and fallback. Drop Deepgram.
+
+## 2026-11-10 - AssemblyAI for every lecture + no Canvas doubles
+
+### What Changed
+- `TranscriptionEngine` is now AssemblyAI (default) or "On-device only"; the setting moved to `transcriptionEngine.v2` so everyone starts on AssemblyAI. Deepgram is gone from the app (LifeOS still serves it); `TranscriptionEngine.name()` labels old deepgram/openai rows.
+- REVIEWER.md step 7: Canvas owns homework. The doorbell lists "Already tracked" (Canvas assignments + open LifeOS tasks for the class, lifeos PR #721); matches are marked "Already in LifeOS (Canvas)" and never sent to LOS, a different spoken date becomes a Q:, not-yet-posted homework is "Watch", never "Add task".
+
+### Files Touched
+`Lectures/Model/Lecture.swift`, `Lectures/Views/LectureDetailView.swift`, `Lectures/Views/SettingsView.swift`, `REVIEWER.md`.
+
+### Tests/Verification
+- iOS compile on push (e2af8eb).
+
