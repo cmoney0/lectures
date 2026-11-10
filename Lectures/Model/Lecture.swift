@@ -123,19 +123,19 @@ final class Lecture {
 /// Settings > Transcription: which engine future lectures go through.
 /// On-device always runs live; a cloud engine re-transcribes the audio after Stop.
 enum TranscriptionEngine: String, CaseIterable, Identifiable {
-    case onDevice = "on-device", openai, assemblyai, deepgram
+    // OpenAI removed 2026-11-10 (no billing on Colby's account); LifeOS still supports it server-side
+    case onDevice = "on-device", assemblyai, deepgram
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .onDevice: "On-device (Apple)"
-        case .openai: "OpenAI"
         case .assemblyai: "AssemblyAI"
         case .deepgram: "Deepgram"
         }
     }
 
-    static var cloud: [TranscriptionEngine] { [.openai, .assemblyai, .deepgram] }
+    static var cloud: [TranscriptionEngine] { [.assemblyai, .deepgram] }
 
     static var saved: TranscriptionEngine {
         get { TranscriptionEngine(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine") ?? "") ?? .onDevice }

@@ -38,7 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **18** (717e7cf, 2026-11-09 2:04 PM CT, started manually from GitHub Actions - not by a Claude session). Shipped since build 13: Home layout fix, crash alert + red-dot Live Activity, icon-only Lock Screen controls, delete before sending, save-only fix, collapsible class sections + "Fluids 11/9" titles.
 
 Changes since then:
-- Cloud transcription: Settings > Transcription (On-device / OpenAI / AssemblyAI / Deepgram) for all future lectures - after Stop the audio is uploaded and the review uses that engine's transcript (falls back to on-device if it can't start). Any lecture's menu: Transcribe with... (compare engines). Transcript tab switches between On-device and each cloud version.
+- Cloud transcription: Settings > Transcription (On-device / AssemblyAI / Deepgram; OpenAI dropped - no billing) for all future lectures - after Stop the audio is uploaded and the review uses that engine's transcript (falls back to on-device if it can't start). Any lecture's menu: Transcribe with... (compare engines). Transcript tab switches between On-device and each cloud version.
 - Audio recorded at 32 kbps (a 75-min class ~18 MB) and merged without re-encoding.
 - Recordings are visible in the Files app (On My iPhone > Lectures > Recordings) and each lecture's menu has "Share audio" - for copying recordings out (e.g. to Google Drive for the transcription-service comparison).
 - Reviews show an "Action items" card first (homework due, exams/quizzes in red, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
@@ -179,3 +179,7 @@ Changes since then:
 - Stop: merge audio first, then (cloud engine) `Pipeline.cloudTranscribe(forReview: true)` = upsert lecture, upload audio to the signed URL (PUT, x-upsert), start the job - then the review request. On failure the lecture falls back to on-device and the review is re-requested (server rings then).
 - Lecture menu "Transcribe with..." (any engine, any lecture with audio); Transcript tab: segmented On-device / engines with status (words / transcribing / failed).
 - Recording bitrate 48 -> 32 kbps; merge uses passthrough export (fallback AppleM4A re-encode) - smaller files, faster, under OpenAI's 25 MB.
+
+## 2026-11-10 - OpenAI dropped from the app
+
+- Colby has no OpenAI billing, so the engine picker and "Transcribe with..." offer only AssemblyAI and Deepgram (`TranscriptionEngine` has no `.openai`). LifeOS's server still accepts `openai` if it's ever wanted again.
