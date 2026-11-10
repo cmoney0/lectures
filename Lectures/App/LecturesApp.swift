@@ -62,6 +62,8 @@ struct RootView: View {
         NavigationStack {
             HomeView()
         }
+        // iPad: never stay stuck in the left half of the screen after launch
+        .background(WindowFit())
         .fullScreenCover(isPresented: $recorder.showRecorder) { RecordView() }
         .sheet(item: $recorder.awaitingOptions) { lecture in ReviewOptionsSheet(lecture: lecture) }
         .task {

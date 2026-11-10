@@ -40,6 +40,7 @@ Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they 
 Changes since then:
 - Every lecture goes through AssemblyAI after Stop by default (new setting key, so old on-device picks reset); Deepgram removed; menu item is now "Transcribe with AssemblyAI" (e2af8eb).
 - Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
+- iPad: the app no longer opens squeezed into the left half of the screen - it snaps to the full window at launch and whenever the window resizes.
 
 ## 2026-11-05 - v1 app
 
@@ -231,3 +232,14 @@ Changes since then:
 ### Tests/Verification
 - iOS compile on push (e2af8eb).
 
+## 2026-11-10 - iPad: no more left-half launches
+
+### What Changed
+- New `Lectures/App/WindowFit.swift`, attached behind the root view in `LecturesApp.swift`: an invisible view that keeps the window (and the root view inside it) the size of its window scene - checked at launch, on every `effectiveGeometry` change (KVO), every layout pass, and on becoming active (plus re-checks at 0.15 / 0.5 / 1.2 s while the launch settles).
+### Why
+- Colby: on iPad, about half the launches drew the app in only the left half of the screen until he relaunched.
+### Design/Workflow Notes
+- Cause not proven (no iPad to reproduce on). iPadOS 26 can open an app in a partial window during the launch and then resize it; the app sometimes stayed laid out at that first size. The fix is a no-op whenever the sizes already match (always on iPhone).
+- If it still happens on the next build: check whether the right half shows the wallpaper/another app (a real half-size window from Windowed Apps / Stage Manager tiling - a Multitasking setting, not the app) or the app's own background (a layout bug - next step would be enabling multiple scenes).
+### Tests/Verification
+- 1819e7a: branch compile run 42882731661.
