@@ -298,7 +298,7 @@ struct LectureReview: Codable {
 }
 
 /// One saved review: which transcript it came from and its version number.
-struct ReviewVersion: Codable, Hashable, Identifiable {
+struct ReviewVersion: Codable, Identifiable {
     var version: Int
     var engine: String?
     var createdAt: String?
