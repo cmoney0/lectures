@@ -24,7 +24,7 @@ You are the **Lectures - Reviewer** Claude session (since 2026-11-05 that is the
         - matches but the professor said a different date/time -> send it as a question: `Q: Professor said HW 7 is due Fri 11/13 23:59, Canvas says Mon 11/16 - which is right?`;
         - homework announced but not on Canvas yet -> `proposal: "Watch: not on Canvas yet - the nightly sync adds it once posted; add by hand only if still missing by <date>"`, send it as info, never as "Add task";
         - things Canvas doesn't track (in-class quizzes/exams -> calendar edit, readings, room changes, cancellations, office hours) -> send normally.
-      - **Questions only Colby can answer** (date conflict, unknown class, unclear assignment): `send_message` to **School HQ** (its session id is in `SCHOOL-HQ.md` > Directory in cmoney0/lifeos). It asks Colby by phone and messages you back; then finish the review / send the item. Until School HQ has registered, use a `Q:` line to LOS as before.
+      - **Questions only Colby can answer** (date conflict, unknown class, unclear assignment): `send_message` to **School HQ** (`session_01Xw2SgWJFeq2u8eDcp4yQ7n`; current id always in `SCHOOL-HQ.md` > Directory in cmoney0/lifeos). It asks Colby by phone and messages you back; then finish the review / send the item. Until School HQ has registered, use a `Q:` line to LOS as before.
       - Skip both when nothing is left to send. Don't repeat items already sent for an earlier lecture.
 3. Stop. The app polls LifeOS and shows the review as soon as the row is `ready`.
 
