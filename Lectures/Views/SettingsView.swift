@@ -63,12 +63,12 @@ struct SettingsView: View {
                     Text("Transcription")
                 } footer: {
                     Text(engine == .onDevice
-                         ? "Free and offline. The live transcript is always on-device."
-                         : "The live transcript stays on-device; after Stop the audio is also sent to \(engine.label) and Claude reviews that transcript (a few cents per lecture). You can try any engine on a past lecture from its menu: Transcribe with...")
+                         ? "Free and offline, but the review misses more (homework and dates the iPhone mishears)."
+                         : "Every lecture: the live transcript stays on-device, then after Stop the audio goes to AssemblyAI (about 20 s, a few cents) and Claude reviews that transcript. Offline, the review falls back to on-device.")
                 }
 
                 Section("Recording") {
-                    Text("Free and offline; audio never leaves your phone, only the text. Start from the Lock Screen / Control Center control, the Action Button (Shortcuts > Record lecture) or Siri: \"Record a lecture in Lectures\".")
+                    Text("Start from the Lock Screen / Control Center control, the Action Button (Shortcuts > Record lecture) or Siri: \"Record a lecture in Lectures\".")
                         .font(.m(12)).foregroundStyle(Theme.sub)
                 }
             }

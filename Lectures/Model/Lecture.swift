@@ -128,26 +128,35 @@ final class Lecture {
     }
 }
 
-/// Settings > Transcription: which engine future lectures go through.
-/// On-device always runs live; a cloud engine re-transcribes the audio after Stop.
+/// Settings > Transcription. Every lecture goes through AssemblyAI after Stop by
+/// default (Colby, 2026-11-10); "On-device only" is the offline / free escape hatch.
+/// The live transcript is always on-device.
 enum TranscriptionEngine: String, CaseIterable, Identifiable {
-    // OpenAI removed 2026-11-10 (no billing on Colby's account); LifeOS still supports it server-side
-    case onDevice = "on-device", assemblyai, deepgram
+    // OpenAI and Deepgram removed 2026-11-10 (no billing / near-empty transcripts);
+    // LifeOS still supports both server-side
+    case assemblyai, onDevice = "on-device"
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .onDevice: "On-device (Apple)"
+        case .onDevice: "On-device only"
         case .assemblyai: "AssemblyAI"
-        case .deepgram: "Deepgram"
         }
     }
 
-    static var cloud: [TranscriptionEngine] { [.assemblyai, .deepgram] }
+    static var cloud: [TranscriptionEngine] { [.assemblyai] }
 
+    /// Name for any engine id LifeOS sends (old rows can be deepgram / openai).
+    static func name(_ raw: String?) -> String {
+        let known = ["on-device": "On-device", "assemblyai": "AssemblyAI", "deepgram": "Deepgram", "openai": "OpenAI"]
+        guard let raw, !raw.isEmpty else { return "On-device" }
+        return known[raw] ?? raw
+    }
+
+    // new key: the old setting defaulted to on-device; everyone starts on AssemblyAI now
     static var saved: TranscriptionEngine {
-        get { TranscriptionEngine(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine") ?? "") ?? .onDevice }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "transcriptionEngine") }
+        get { TranscriptionEngine(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine.v2") ?? "") ?? .assemblyai }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "transcriptionEngine.v2") }
     }
 }
 
@@ -307,8 +316,7 @@ struct ReviewVersion: Codable, Identifiable {
 
     /// "v2 · AssemblyAI"
     var label: String {
-        let e = engine.flatMap { TranscriptionEngine(rawValue: $0)?.label } ?? (engine == "openai" ? "OpenAI" : engine ?? "On-device")
-        return "v\(version) · \(e == TranscriptionEngine.onDevice.label ? "On-device" : e)"
+        "v\(version) · \(TranscriptionEngine.name(engine))"
     }
 
     enum CodingKeys: String, CodingKey { case version, engine, createdAt, review }

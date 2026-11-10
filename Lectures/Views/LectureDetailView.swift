@@ -149,7 +149,7 @@ struct LectureDetailView: View {
             if !cloud.isEmpty {
                 Picker("Source", selection: $source) {
                     Text("On-device").tag(TranscriptionEngine.onDevice.rawValue)
-                    ForEach(cloud) { t in Text(TranscriptionEngine(rawValue: t.engine)?.label ?? t.engine).tag(t.engine) }
+                    ForEach(cloud) { t in Text(TranscriptionEngine.name(t.engine)).tag(t.engine) }
                 }
                 .pickerStyle(.segmented)
                 if let t = cloud.first(where: { $0.engine == source }) {
@@ -185,18 +185,14 @@ struct LectureDetailView: View {
             }
             ShareLink(item: ClaudeExport.text(for: lecture)) { Label("Share transcript to Claude", systemImage: "square.and.arrow.up") }
             if lecture.hasAudio {
-                Menu {
-                    ForEach(TranscriptionEngine.cloud) { engine in
-                        Button(engine.label) {
-                            Task {
-                                await Pipeline.cloudTranscribe(lecture, engine: engine, forReview: false)
-                                tab = 3
-                                source = engine.rawValue
-                                await loadCloud()
-                            }
-                        }
+                Button {
+                    Task {
+                        await Pipeline.cloudTranscribe(lecture, engine: .assemblyai, forReview: false)
+                        tab = 3
+                        source = TranscriptionEngine.assemblyai.rawValue
+                        await loadCloud()
                     }
-                } label: { Label("Transcribe with...", systemImage: "text.bubble") }
+                } label: { Label("Transcribe with AssemblyAI", systemImage: "text.bubble") }
                 // shared as <lecture id>.m4a - the id matches LifeOS, so a shared file maps to its transcript
                 ShareLink(item: lecture.audioURL) { Label("Share audio", systemImage: "waveform") }
             }
