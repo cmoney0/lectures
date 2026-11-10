@@ -35,13 +35,9 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Last TestFlight build: **18** (717e7cf, 2026-11-09 2:04 PM CT, started manually from GitHub Actions - not by a Claude session). Shipped since build 13: Home layout fix, crash alert + red-dot Live Activity, icon-only Lock Screen controls, delete before sending, save-only fix, collapsible class sections + "Fluids 11/9" titles.
+Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
 
-Changes since then:
-- Cloud transcription: Settings > Transcription (On-device / AssemblyAI / Deepgram; OpenAI dropped - no billing) for all future lectures - after Stop the audio is uploaded and the review uses that engine's transcript (falls back to on-device if it can't start). Any lecture's menu: Transcribe with... (compare engines). Transcript tab switches between On-device and each cloud version.
-- Audio recorded at 32 kbps (a 75-min class ~18 MB) and merged without re-encoding.
-- Recordings are visible in the Files app (On My iPhone > Lectures > Recordings) and each lecture's menu has "Share audio" - for copying recordings out (e.g. to Google Drive for the transcription-service comparison).
-- Reviews show an "Action items" card first (homework due, exams/quizzes in red, readings) - the same items the Reviewer sends to LOS for Colby to approve; also in the PDF.
+Changes since then: none.
 
 ## 2026-11-05 - v1 app
 
@@ -183,3 +179,8 @@ Changes since then:
 ## 2026-11-10 - OpenAI dropped from the app
 
 - Colby has no OpenAI billing, so the engine picker and "Transcribe with..." offer only AssemblyAI and Deepgram (`TranscriptionEngine` has no `.openai`). LifeOS's server still accepts `openai` if it's ever wanted again.
+
+## 2026-11-10 - TestFlight build 24 (cloud transcription)
+
+- Before building: Vercel had both keys but they postdated the last deploy; redeployed (LifeOS PR #714) and `GET /api/lectures?engines=1` returned AssemblyAI ok (200) and Deepgram ok (200).
+- Run 42847585618: archived + uploaded. LifeOS build 151 shipped in the same go.
