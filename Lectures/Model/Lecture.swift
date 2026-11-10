@@ -31,6 +31,8 @@ final class Lecture {
     /// Mirrors the server: none | requested | working | ready | failed
     var reviewStatusRaw: String
     var reviewJSON: String?
+    /// Every review version from LifeOS ([ReviewVersion], newest first).
+    var reviewVersionsJSON: String?
     var reviewError: String?
 
     init(title: String, recordedAt: Date = .now, id: UUID = UUID()) {
@@ -59,6 +61,12 @@ final class Lecture {
     var review: LectureReview? {
         guard let reviewJSON, let data = reviewJSON.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(LectureReview.self, from: data)
+    }
+
+    /// v1, v2... one per transcript the review was written from, newest first.
+    var reviewVersions: [ReviewVersion] {
+        guard let reviewVersionsJSON, let data = reviewVersionsJSON.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([ReviewVersion].self, from: data)) ?? []
     }
 
     var reviewOptions: ReviewOptions? {
@@ -287,6 +295,31 @@ struct LectureReview: Codable {
     var actionItems: [Action]?
 
     struct Action: Codable, Hashable { var kind: String?; var text: String?; var date: String?; var time: String?; var proposal: String? }
+}
+
+/// One saved review: which transcript it came from and its version number.
+struct ReviewVersion: Codable, Hashable, Identifiable {
+    var version: Int
+    var engine: String?
+    var createdAt: String?
+    var review: LectureReview?
+    var id: Int { version }
+
+    /// "v2 · AssemblyAI"
+    var label: String {
+        let e = engine.flatMap { TranscriptionEngine(rawValue: $0)?.label } ?? (engine == "openai" ? "OpenAI" : engine ?? "On-device")
+        return "v\(version) · \(e == TranscriptionEngine.onDevice.label ? "On-device" : e)"
+    }
+
+    enum CodingKeys: String, CodingKey { case version, engine, createdAt, review }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = (try? c.decode(Int.self, forKey: .version)) ?? 1
+        engine = try? c.decodeIfPresent(String.self, forKey: .engine)
+        createdAt = try? c.decodeIfPresent(String.self, forKey: .createdAt)
+        review = try? c.decodeIfPresent(LectureReview.self, forKey: .review)
+    }
 }
 
 struct TranscriptPiece: Sendable {

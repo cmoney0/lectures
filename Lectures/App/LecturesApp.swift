@@ -261,6 +261,9 @@ enum Pipeline {
             lecture.reviewJSON = String(data: data, encoding: .utf8)
             if lecture.courseName.isEmpty, let c = review.course, !c.isEmpty { lecture.courseName = c }
         }
+        if let versions = row.reviews, !versions.isEmpty, let data = try? JSONEncoder().encode(versions) {
+            lecture.reviewVersionsJSON = String(data: data, encoding: .utf8)
+        }
     }
 
     /// While the app is open: check every 15 s whenever something is waiting on Claude.

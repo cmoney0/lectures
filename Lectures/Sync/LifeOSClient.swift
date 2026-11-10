@@ -89,8 +89,10 @@ final class LifeOSClient {
         var durationSec: Double?
         var transcript: String?
         var engine: String?
+        /// Every saved review, newest first (v2 · assemblyai, v1 · on-device).
+        var reviews: [ReviewVersion]?
 
-        enum CodingKeys: String, CodingKey { case id, course, courseId, courseShort, reviewStatus, reviewError, review, title, recordedAt, durationSec, transcript, engine }
+        enum CodingKeys: String, CodingKey { case id, course, courseId, courseShort, reviewStatus, reviewError, review, title, recordedAt, durationSec, transcript, engine, reviews }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -107,6 +109,7 @@ final class LifeOSClient {
             durationSec = try? c.decodeIfPresent(Double.self, forKey: .durationSec)
             transcript = try? c.decodeIfPresent(String.self, forKey: .transcript)
             engine = try? c.decodeIfPresent(String.self, forKey: .engine)
+            reviews = try? c.decodeIfPresent([ReviewVersion].self, forKey: .reviews)
         }
     }
 

@@ -15,15 +15,25 @@ struct LectureDetailView: View {
     @State private var confirmDelete = false
     @State private var cloud: [LifeOSClient.CloudTranscript] = []
     @State private var source = TranscriptionEngine.onDevice.rawValue
+    /// Which review version is shown (nil = the newest).
+    @State private var version: Int?
     @Environment(\.dismiss) private var dismiss
 
-    private var review: LectureReview? { lecture.review }
+    private var versions: [ReviewVersion] { lecture.reviewVersions }
+    private var shownVersion: ReviewVersion? {
+        versions.first { $0.version == version } ?? versions.first
+    }
+    private var review: LectureReview? {
+        if let version, let r = versions.first(where: { $0.version == version })?.review { return r }
+        return lecture.review
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header
                 if lecture.stage != .done { PipelineCard(lecture: lecture) }
+                if review != nil, versions.count > 1 { versionMenu }
                 if review != nil {
                     Picker("View", selection: $tab) {
                         if review?.guide != nil { Text("Guide").tag(4) }
@@ -54,6 +64,7 @@ struct LectureDetailView: View {
             // the iPad opens straight into the in-depth guide when there is one
             if review?.guide != nil && UIDevice.current.userInterfaceIdiom == .pad { tab = 4 }
         }
+        .onChange(of: version) { if tab == 4 && review?.guide == nil { tab = 0 } }
         .onDisappear { player.stop() }
         .confirmationDialog("Delete this lecture? It is removed from your phone and LifeOS.", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete lecture", role: .destructive) {
@@ -78,6 +89,28 @@ struct LectureDetailView: View {
             Text("\(lecture.recordedAt.formatted(date: .abbreviated, time: .shortened)) · \(Clock.string(lecture.durationSec)) · \(lecture.wordCount) words")
                 .font(.m(12)).foregroundStyle(Theme.sub)
             if lecture.hasAudio { playerBar.padding(.top, 6) }
+        }
+    }
+
+    /// "v2 · AssemblyAI ▾": one review per transcript, pick which to read.
+    private var versionMenu: some View {
+        Menu {
+            ForEach(versions) { v in
+                Button { version = v.version } label: {
+                    if v.version == (shownVersion?.version ?? -1) { Label(v.label, systemImage: "checkmark") } else { Text(v.label) }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "square.stack.3d.up").font(.system(size: 12, weight: .semibold))
+                Text(shownVersion?.label ?? "Review").font(.m(13, .bold))
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+                Spacer()
+                Text("\(versions.count) reviews").font(.m(11)).foregroundStyle(Theme.sub)
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
         }
     }
 
