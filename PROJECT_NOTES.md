@@ -37,7 +37,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
 
-Changes since then: none.
+Changes since then:
+- Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
 
 ## 2026-11-05 - v1 app
 
@@ -184,3 +185,20 @@ Changes since then: none.
 
 - Before building: Vercel had both keys but they postdated the last deploy; redeployed (LifeOS PR #714) and `GET /api/lectures?engines=1` returned AssemblyAI ok (200) and Deepgram ok (200).
 - Run 42847585618: archived + uploaded. LifeOS build 151 shipped in the same go.
+
+## 2026-11-10 - Review versions (v1, v2... tagged by transcript)
+
+### What Changed
+- Every finished transcript (on-device or cloud) now gets its own review, saved as the next version by a Supabase trigger (`lecture_reviews`, migration `lecture_review_versions`). LifeOS returns them as `reviews` in the `?ids` and `?full` sync (lifeos PR #717).
+- App: `ReviewVersion` + `Lecture.reviewVersionsJSON`, stored in `Pipeline.apply`; `LectureDetailView` shows a "v2 · AssemblyAI ▾" menu above the tabs when there are 2+ versions, and every tab (and Export PDF) follows the picked version.
+- REVIEWER.md: write from `review_engine`'s transcript; never edit `lecture_reviews`.
+- LifeOS skips the automatic review when a cloud transcript has under 40% of the on-device words (Deepgram returned 0-550 words on 4 of 5 lectures).
+
+### Files Touched
+`Lectures/Model/Lecture.swift`, `Lectures/Sync/LifeOSClient.swift`, `Lectures/App/LecturesApp.swift`, `Lectures/Views/LectureDetailView.swift`, `REVIEWER.md`.
+
+### Design/Workflow Notes
+- The trigger only fires on a status change INTO `ready`, so a re-review must go `working` first (REVIEWER.md already claims rows that way).
+
+### Tests/Verification
+- iOS compile on push (f4546d5).
