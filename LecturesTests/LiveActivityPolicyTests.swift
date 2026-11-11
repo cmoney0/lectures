@@ -32,7 +32,8 @@ final class LiveActivityPolicyTests: XCTestCase {
     }
 
     func testLongLockedStretchesStayLive() {
-        for gap in [60.0, 120, 300, 600, 14 * 60] {
+        let gaps: [TimeInterval] = [60, 120, 300, 600, 840]
+        for gap in gaps {
             XCTAssertFalse(LiveActivityPolicy.isStale(now: t0.addingTimeInterval(gap), lastRefresh: t0, paused: false),
                            "\(Int(gap)) s without a refresh should not look stopped")
         }
