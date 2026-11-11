@@ -278,8 +278,8 @@ Changes since then:
 - Local "Lectures stopped recording" notification unchanged (offline backup).
 - Tests rewritten: 18 cases (regression of the old 90 s rule, no stale date ever, server lost timing, decoding LifeOS's stopped / heal pushes in Apple-epoch dates, heartbeat log).
 
-### Pending
-- Supabase migration `lecture_live_heartbeat` (table + `lifeos_private.lecture_live_tick` + cron `lectures-live-tick` every 10 s) needs Colby's approval of the Supabase prompt.
+### Server status
+- Supabase migration `lecture_live_heartbeat` applied 2026-11-11 with Colby's OK and verified end to end (cron -> LifeOS -> APNs within 10 s). Rows whose token Apple rejects are ended (lifeos #746).
 
 ### Tests/Verification
 - CI compile + unit tests (see commit).
