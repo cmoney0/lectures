@@ -161,7 +161,7 @@ final class LifeOSClient {
               let link = json["url"] as? String, let url = URL(string: link) else { throw LifeOSError.server("No upload link came back.") }
         var req = URLRequest(url: url)
         req.httpMethod = "PUT"
-        req.timeoutInterval = timeout0
+        req.timeoutInterval = 600
         req.setValue("audio/mp4", forHTTPHeaderField: "Content-Type")
         req.setValue("true", forHTTPHeaderField: "x-upsert")
         let (_, response) = try await URLSession.shared.upload(for: req, fromFile: lecture.audioURL)
@@ -214,7 +214,7 @@ final class LifeOSClient {
         if !query.isEmpty { url.queryItems = query }
         var req = URLRequest(url: url.url!)
         req.httpMethod = method
-        req.timeoutInterval = 60
+        req.timeoutInterval = timeout
         req.setValue(key, forHTTPHeaderField: "x-lifeos-widget")
         if let body {
             req.httpBody = body
