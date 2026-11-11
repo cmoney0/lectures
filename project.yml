@@ -56,6 +56,11 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         NSMicrophoneUsageDescription: Lectures records your classes so they can be transcribed.
         NSSpeechRecognitionUsageDescription: Lectures turns your class recordings into text on your iPhone.
+    entitlements:
+      path: Lectures/Lectures.entitlements
+      properties:
+        # Live Activity push: LifeOS marks the recording stopped if the app dies (2026-11-11)
+        aps-environment: production
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures
@@ -72,6 +77,7 @@ targets:
     sources:
       - path: LecturesTests
       - path: Lectures/Shared/LiveActivityPolicy.swift
+      - path: Lectures/Shared/LectureActivity.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures.tests

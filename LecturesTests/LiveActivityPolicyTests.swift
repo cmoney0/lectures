@@ -1,127 +1,138 @@
 import XCTest
 
-/// Live Activity timing (bug 2026-11-11: Lock Screen said "Recording stopped"
-/// while the app was still recording).
+/// Live Activity rules (bug 2026-11-11: the Lock Screen said "Recording stopped"
+/// while the app was still recording, and no crash notification came).
 final class LiveActivityPolicyTests: XCTestCase {
     private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 
-    // MARK: stale date
+    // MARK: the bug
 
-    func testNoStaleDateWhilePaused() {
+    /// The real failure: refreshes stop landing for ~2 min with the phone locked.
+    func testOldRuleShowedStoppedWhileRecordingRegression() {
+        XCTAssertTrue(LiveActivityPolicy.legacyIsStale(now: t0.addingTimeInterval(120), lastRefresh: t0),
+                      "the old 90 s stale date flipped to 'stopped' with the app still recording")
+    }
+
+    func testAppNeverSetsAStaleDate() {
+        XCTAssertNil(LiveActivityPolicy.staleDate(now: t0, paused: false))
         XCTAssertNil(LiveActivityPolicy.staleDate(now: t0, paused: true))
     }
 
-    func testStaleDateIsFifteenMinutesOutWhileRecording() {
-        XCTAssertEqual(LiveActivityPolicy.staleDate(now: t0, paused: false), t0.addingTimeInterval(15 * 60))
+    func testSystemStaleFlagCanNeverSayStopped() {
+        // only `lost` (LifeOS's push) maps to stopped; there is no stale input at all
+        XCTAssertEqual(LiveActivityMode(paused: false, lost: false), .recording)
+        XCTAssertEqual(LiveActivityMode(paused: true, lost: false), .paused)
     }
 
-    func testPausedNeverGoesStale() {
-        XCTAssertFalse(LiveActivityPolicy.isStale(now: t0.addingTimeInterval(3 * 3600), lastRefresh: t0, paused: true))
-    }
-
-    // MARK: the bug
-
-    /// The real failure: one refresh lands ~2 min late with the phone locked.
-    func testLateRefreshUsedToShowStoppedRegression() {
-        let twoMinutesLater = t0.addingTimeInterval(120)
-        XCTAssertTrue(LiveActivityPolicy.isStale(now: twoMinutesLater, lastRefresh: t0, paused: false,
-                                                 window: LiveActivityPolicy.legacyStaleAfter),
-                      "the old 90 s window shows 'stopped' after a 2-minute gap")
-        XCTAssertFalse(LiveActivityPolicy.isStale(now: twoMinutesLater, lastRefresh: t0, paused: false),
-                       "the new window must ride out a 2-minute gap")
-    }
-
-    func testLongLockedStretchesStayLive() {
-        let gaps: [TimeInterval] = [60, 120, 300, 600, 840]
-        for gap in gaps {
-            XCTAssertFalse(LiveActivityPolicy.isStale(now: t0.addingTimeInterval(gap), lastRefresh: t0, paused: false),
-                           "\(Int(gap)) s without a refresh should not look stopped")
+    /// A whole 50-minute class where local Live Activity refreshes never land:
+    /// the Lock Screen stays "Recording" because nothing local can flip it.
+    func testLocalRefreshesNotLandingNeverShowStopped() {
+        let state = LectureActivityAttributes.ContentState(startedAt: t0, pausedElapsed: nil, lastLine: "", lost: nil)
+        for minute in stride(from: 0, through: 50, by: 1) {
+            _ = minute
+            XCTAssertEqual(LiveActivityMode(paused: state.pausedElapsed != nil, lost: state.lost == true), .recording)
         }
     }
 
-    func testRealSilenceEventuallyShowsNoSignal() {
-        XCTAssertTrue(LiveActivityPolicy.isStale(now: t0.addingTimeInterval(15 * 60), lastRefresh: t0, paused: false))
-        XCTAssertTrue(LiveActivityPolicy.isStale(now: t0.addingTimeInterval(3600), lastRefresh: t0, paused: false))
+    // MARK: LifeOS's dead-man switch
+
+    func testServerCallsLostOnlyAfter75sOfSilence() {
+        XCTAssertFalse(LiveActivityPolicy.serverCallsLost(now: t0.addingTimeInterval(20), lastBeat: t0, paused: false))
+        XCTAssertFalse(LiveActivityPolicy.serverCallsLost(now: t0.addingTimeInterval(60), lastBeat: t0, paused: false))
+        XCTAssertTrue(LiveActivityPolicy.serverCallsLost(now: t0.addingTimeInterval(80), lastBeat: t0, paused: false))
     }
 
-    /// Simulates a 50-minute class where iOS delivers refreshes irregularly.
-    func testIrregularRefreshesThroughAWholeClassNeverGoStale() {
-        // on time for 5 min, then throttled to one every 4 min while locked, then on time again
-        var refreshes: [TimeInterval] = stride(from: 0, through: 300, by: 20).map { $0 }
-        refreshes += stride(from: 540, through: 2400, by: 240).map { $0 }
-        refreshes += stride(from: 2420, through: 3000, by: 20).map { $0 }
-        var last = t0
-        var now = t0
-        var index = 0
-        while now <= t0.addingTimeInterval(3000) {
-            while index < refreshes.count, t0.addingTimeInterval(refreshes[index]) <= now {
-                last = t0.addingTimeInterval(refreshes[index]); index += 1
-            }
-            XCTAssertFalse(LiveActivityPolicy.isStale(now: now, lastRefresh: last, paused: false),
-                           "stale at \(Int(now.timeIntervalSince(t0))) s")
-            now = now.addingTimeInterval(10)
-        }
+    func testPausedIsNeverLost() {
+        XCTAssertFalse(LiveActivityPolicy.serverCallsLost(now: t0.addingTimeInterval(3 * 3600), lastBeat: t0, paused: true))
     }
 
-    // MARK: timing relationships
-
-    func testManyHeartbeatsCanBeMissedBeforeStale() {
-        XCTAssertGreaterThanOrEqual(LiveActivityPolicy.missableHeartbeats, 20)
+    func testOneMissedHeartbeatIsNotLost() {
+        // beats at 0 and 40 (the 20 s one went missing): never more than 40 s of silence
+        XCTAssertFalse(LiveActivityPolicy.serverCallsLost(now: t0.addingTimeInterval(40), lastBeat: t0, paused: false))
+        XCTAssertGreaterThan(LiveActivityPolicy.serverLostAfter, LiveActivityPolicy.heartbeat * 3)
     }
 
     func testCrashNotificationSurvivesOneLateHeartbeat() {
         XCTAssertGreaterThan(LiveActivityPolicy.crashNotificationAfter, LiveActivityPolicy.heartbeat * 2)
     }
 
-    func testCrashNotificationComesLongBeforeNoSignal() {
-        XCTAssertLessThan(LiveActivityPolicy.crashNotificationAfter * 4, LiveActivityPolicy.staleAfter)
+    func testServerMatchesTheAppsTiming() {
+        // api/_lectures.js LOST_AFTER_MS = 75_000
+        XCTAssertEqual(LiveActivityPolicy.serverLostAfter, 75)
+    }
+
+    // MARK: the push LifeOS sends
+
+    /// LifeOS sends dates as seconds since 2001 (APPLE_EPOCH) - the push must decode.
+    func testLifeOSStoppedPushDecodes() throws {
+        let json = #"{"startedAt": 784893600, "lastLine": "", "lost": true}"#
+        let state = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: Data(json.utf8))
+        XCTAssertEqual(state.lost, true)
+        XCTAssertNil(state.pausedElapsed)
+        XCTAssertEqual(state.startedAt, Date(timeIntervalSinceReferenceDate: 784_893_600))
+        XCTAssertEqual(LiveActivityMode(paused: state.pausedElapsed != nil, lost: state.lost == true), .stopped)
+    }
+
+    func testLifeOSHealPushDecodes() throws {
+        let json = #"{"startedAt": 784893600, "lastLine": "", "lost": false}"#
+        let state = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: Data(json.utf8))
+        XCTAssertEqual(LiveActivityMode(paused: state.pausedElapsed != nil, lost: state.lost == true), .recording)
+    }
+
+    func testHealPushWhilePausedShowsPaused() throws {
+        let json = #"{"startedAt": 784893600, "pausedElapsed": 0, "lastLine": "", "lost": false}"#
+        let state = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: Data(json.utf8))
+        XCTAssertEqual(LiveActivityMode(paused: state.pausedElapsed != nil, lost: state.lost == true), .paused)
+    }
+
+    func testOldStateWithoutLostStillDecodes() throws {
+        let json = #"{"startedAt": 784893600, "lastLine": "hello"}"#
+        let state = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: Data(json.utf8))
+        XCTAssertNil(state.lost)
+        XCTAssertEqual(LiveActivityMode(paused: false, lost: state.lost == true), .recording)
     }
 
     // MARK: what the Lock Screen shows
 
-    func testModes() {
-        XCTAssertEqual(LiveActivityMode(paused: false, stale: false), .recording)
-        XCTAssertEqual(LiveActivityMode(paused: true, stale: false), .paused)
-        XCTAssertEqual(LiveActivityMode(paused: false, stale: true), .noSignal)
-        XCTAssertEqual(LiveActivityMode(paused: true, stale: true), .noSignal)
+    func testOnlyStoppedSaysStopped() {
+        XCTAssertFalse(LiveActivityMode.recording.lockScreenText.lowercased().contains("stopped"))
+        XCTAssertFalse(LiveActivityMode.paused.lockScreenText.lowercased().contains("stopped"))
+        XCTAssertTrue(LiveActivityMode.stopped.lockScreenText.contains("Recording stopped"))
     }
 
-    func testNoSignalNeverClaimsTheRecordingStopped() {
-        for mode in [LiveActivityMode.recording, .paused, .noSignal] {
-            XCTAssertFalse(mode.lockScreenText.lowercased().contains("stopped"), "\(mode) says stopped")
-        }
-    }
-
-    func testControlsHiddenOnlyWithoutSignal() {
+    func testControlsHiddenOnlyWhenStopped() {
         XCTAssertTrue(LiveActivityMode.recording.showsControls)
         XCTAssertTrue(LiveActivityMode.paused.showsControls)
-        XCTAssertFalse(LiveActivityMode.noSignal.showsControls)
+        XCTAssertFalse(LiveActivityMode.stopped.showsControls)
     }
 
-    // MARK: heartbeat log (Settings > Diagnostics)
+    // MARK: heartbeat log (Settings > Last recording)
 
-    func testHeartbeatLogTracksLongestGap() {
+    func testHeartbeatLogTracksGapsAndDelivery() {
         var log = HeartbeatLog()
         log.beat(at: t0)
-        XCTAssertEqual(log.maxGap, 0)
         log.beat(at: t0.addingTimeInterval(20))
-        log.beat(at: t0.addingTimeInterval(200))
-        log.beat(at: t0.addingTimeInterval(220))
+        log.beat(at: t0.addingTimeInterval(120), delivered: false)
+        log.beat(at: t0.addingTimeInterval(140))
         XCTAssertEqual(log.beats, 4)
-        XCTAssertEqual(log.maxGap, 180)
+        XCTAssertEqual(log.delivered, 3)
+        XCTAssertEqual(log.maxGap, 100)
         XCTAssertEqual(log.startedAt, t0)
         XCTAssertTrue(log.wasLate())
+        XCTAssertTrue(log.wouldLookLost)
     }
 
-    func testOnTimeHeartbeatsAreNotLate() {
+    func testOnTimeHeartbeatsAreFine() {
         var log = HeartbeatLog()
-        for i in 0..<30 { log.beat(at: t0.addingTimeInterval(Double(i) * 20)) }
+        for i in 0..<150 { log.beat(at: t0.addingTimeInterval(Double(i) * 20)) }
         XCTAssertFalse(log.wasLate())
+        XCTAssertFalse(log.wouldLookLost)
+        XCTAssertEqual(log.delivered, 150)
     }
 
     func testHeartbeatLogRoundTripsThroughJSON() throws {
         var log = HeartbeatLog()
-        log.beat(at: t0); log.beat(at: t0.addingTimeInterval(45))
+        log.beat(at: t0); log.beat(at: t0.addingTimeInterval(45), delivered: false)
         let back = try JSONDecoder().decode(HeartbeatLog.self, from: JSONEncoder().encode(log))
         XCTAssertEqual(back, log)
     }

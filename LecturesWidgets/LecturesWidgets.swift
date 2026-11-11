@@ -25,16 +25,16 @@ struct RecordLectureControl: ControlWidget {
 }
 
 /// Recording indicator + Pause / Stop on the Lock Screen and in the Dynamic Island.
-/// Just a red dot - no timer (Colby). Only after a long silence (15 min, see
-/// LiveActivityPolicy) does it say "no signal"; crashes alert by notification.
+/// Just a red dot - no timer (Colby). It says "Recording stopped" only when
+/// LifeOS pushes that the app went silent (LiveActivityPolicy) - never on its own.
 struct LectureLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LectureActivityAttributes.self) { context in
-            LockScreenView(state: context.state, stale: context.isStale)
+            LockScreenView(state: context.state)
                 .activityBackgroundTint(LectureColors.bg)
                 .activitySystemActionForegroundColor(LectureColors.text)
         } dynamicIsland: { context in
-            let mode = Mode(state: context.state, stale: context.isStale)
+            let mode = Mode(state: context.state)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
@@ -46,8 +46,8 @@ struct LectureLiveActivity: Widget {
                     if mode.showsControls { Buttons(paused: mode == .paused) }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    if mode == .noSignal {
-                        Text("Open Lectures to check the recording.").font(.system(size: 13)).foregroundStyle(LectureColors.sub)
+                    if mode == .stopped {
+                        Text("Open Lectures to continue this lecture.").font(.system(size: 13)).foregroundStyle(LectureColors.sub)
                     }
                 }
             } compactLeading: {
@@ -65,14 +65,15 @@ struct LectureLiveActivity: Widget {
 private typealias Mode = LiveActivityMode
 
 private extension LiveActivityMode {
-    init(state: LectureActivityAttributes.ContentState, stale: Bool) {
-        self.init(paused: state.pausedElapsed != nil, stale: stale)
+    /// Only LifeOS's push (lost) can say stopped - never the system's stale flag.
+    init(state: LectureActivityAttributes.ContentState) {
+        self.init(paused: state.pausedElapsed != nil, lost: state.lost == true)
     }
 
     var color: Color {
         switch self {
         case .recording: LectureColors.red
-        case .paused, .noSignal: LectureColors.sub
+        case .paused, .stopped: LectureColors.sub
         }
     }
 }
@@ -83,7 +84,7 @@ private struct RecDot: View {
     let size: CGFloat
 
     var body: some View {
-        if mode == .noSignal {
+        if mode == .stopped {
             Circle().stroke(LectureColors.sub, lineWidth: 2).frame(width: size, height: size)
         } else {
             Circle().fill(mode.color).frame(width: size, height: size)
@@ -93,10 +94,9 @@ private struct RecDot: View {
 
 private struct LockScreenView: View {
     let state: LectureActivityAttributes.ContentState
-    let stale: Bool
 
     var body: some View {
-        let mode = Mode(state: state, stale: stale)
+        let mode = Mode(state: state)
         // No transcript - just the dot, the state and icon-only controls (Colby).
         HStack(spacing: 10) {
             RecDot(mode: mode, size: 12)

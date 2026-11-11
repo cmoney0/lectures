@@ -38,7 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
 
 Changes since then:
-- Live Activity no longer says "Recording stopped" while still recording: 15 min stale window (was 90 s), "No signal - open Lectures to check" wording, refresh on app open, frequent-updates key, Settings > Last recording diagnostics, first unit tests (bug from Colby via School HQ, 2026-11-11).
+- Live Activity says "Recording stopped" only when it really stopped: no local stale date at all; the app heartbeats LifeOS every 20 s and LifeOS pushes the Live Activity (APNs) after 75 s of silence, then puts it back if the app checks in again. Push entitlement + signing turns on Push for the App ID. Settings > Last recording diagnostics; 18 unit tests (Colby via School HQ, 2026-11-11).
 - Every lecture goes through AssemblyAI after Stop by default (new setting key, so old on-device picks reset); Deepgram removed; menu item is now "Transcribe with AssemblyAI" (e2af8eb).
 - Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
 - iPad: the app no longer opens squeezed into the left half of the screen - it snaps to the full window at launch and whenever the window resizes.
@@ -263,6 +263,23 @@ Changes since then:
 4. Phone call or Siri mid-recording, then back: recording continues, transcript keeps growing.
 5. Swap AirPods in/out mid-recording: keeps recording.
 6. Force-quit while recording: "Lectures stopped recording" notification within ~75 s; Lock Screen shows "No signal" by 15 min; reopening clears it and offers resume.
+
+### Tests/Verification
+- CI compile + unit tests (see commit).
+
+## 2026-11-11 (later) - Live Activity: LifeOS decides "stopped" (replaces the 15-min window)
+
+### What Changed
+- Colby: the 15-min window was a patch ("there's a way for this to work perfectly"); he got NO crash notification when the Lock Screen said stopped, so the app was alive and only its local Live Activity refreshes weren't landing.
+- App never sets a stale date and only updates the Live Activity on start / pause / resume / stop. `ContentState.lost` (set only by LifeOS) is the one thing that shows "Recording stopped - tap to resume".
+- App heartbeats LifeOS (`POST /api/lectures?live=1`: id, state recording/paused/ended, the activity's APNs push token, startedAt) every 20 s, on pause/resume/stop, and the moment the network comes back (NWPathMonitor). Leftover activities from a crash are ended on launch and reported "ended".
+- LifeOS (lifeos repo `api/_lectures.js`): `lecture_live` table; `?live=tick` (server key) from pg_cron every 10 s marks a recording lost after 75 s of silence and pushes the Live Activity with `lost: true` (apns-expiration 0, re-sent every 30 s up to 2 h, so a phone that was only offline never gets a late "stopped"); the next heartbeat pushes it back to recording.
+- `aps-environment: production` entitlement; `ci/signing.py` turns on Push Notifications for com.cmoney0.lectures through the ASC API and rebuilds the profile until it carries aps-environment. Without push the activity still starts (fallback), just without the server backstop.
+- Local "Lectures stopped recording" notification unchanged (offline backup).
+- Tests rewritten: 18 cases (regression of the old 90 s rule, no stale date ever, server lost timing, decoding LifeOS's stopped / heal pushes in Apple-epoch dates, heartbeat log).
+
+### Pending
+- Supabase migration `lecture_live_heartbeat` (table + `lifeos_private.lecture_live_tick` + cron `lectures-live-tick` every 10 s) needs Colby's approval of the Supabase prompt.
 
 ### Tests/Verification
 - CI compile + unit tests (see commit).

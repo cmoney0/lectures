@@ -1,5 +1,6 @@
 import ActivityKit
 import AVFoundation
+import Network
 import Observation
 import SwiftData
 import UIKit
@@ -34,8 +35,13 @@ final class LectureRecorder {
     private var activity: Activity<LectureActivityAttributes>?
     private var lastActivityUpdate = Date.distantPast
     private var watchdog: Task<Void, Never>?
-    /// Gaps between heartbeats this recording (Settings > Diagnostics).
+    /// Heartbeats to LifeOS this recording (Settings > Last recording).
     private var heartbeats = HeartbeatLog()
+    /// The Live Activity's APNs token: LifeOS pushes "Recording stopped" with it.
+    private var pushToken: String?
+    private var tokenTask: Task<Void, Never>?
+    /// Back online after a dead spot: heartbeat at once so LifeOS never thinks it stopped.
+    private var pathMonitor: NWPathMonitor?
 
     private var context: ModelContext { Store.container.mainContext }
 
@@ -119,7 +125,8 @@ final class LectureRecorder {
         current = target
         heartbeats = HeartbeatLog()
         observeSession()
-        startActivity(title: target.title)
+        startActivity(title: target.title, lectureId: target.id)
+        startPathMonitor()
         armWatchdog()
     }
 
@@ -133,6 +140,7 @@ final class LectureRecorder {
                 try pipeline.resume()
                 isPaused = false
                 armWatchdog()
+                sendLive("recording")
             } catch {
                 errorMessage = "Couldn't resume: \(error.localizedDescription)"
             }
@@ -142,6 +150,7 @@ final class LectureRecorder {
             // a paused app may be suspended - that's not a crash
             disarmWatchdog()
             try? context.save()
+            sendLive("paused")
         }
         updateActivity(force: true)
     }
@@ -158,6 +167,8 @@ final class LectureRecorder {
 
         stopObserving()
         disarmWatchdog()
+        stopPathMonitor()
+        sendLive("ended")
         pipeline.stop()
         lecture.durationSec = elapsed
         lecture.status = .finishing
@@ -202,7 +213,6 @@ final class LectureRecorder {
             volatileText = ""
             guard !text.isEmpty else { return }
             append(TranscriptPiece(start: offset + start, text: text), to: lecture)
-            updateActivity(force: false)
         } else {
             volatileText = text
         }
@@ -237,14 +247,63 @@ final class LectureRecorder {
         LectureActivityAttributes.ContentState(
             startedAt: Date().addingTimeInterval(-elapsed),
             pausedElapsed: isPaused ? elapsed : nil,
-            lastLine: liveLines.last?.text ?? "Listening...")
+            lastLine: liveLines.last?.text ?? "Listening...",
+            lost: nil)
     }
 
-    private func startActivity(title: String) {
+    private func startActivity(title: String, lectureId: UUID) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        activity = try? Activity.request(
-            attributes: LectureActivityAttributes(title: title),
-            content: ActivityContent(state: activityState(), staleDate: staleDate))
+        let attributes = LectureActivityAttributes(title: title, lectureId: lectureId.uuidString)
+        let content = ActivityContent(state: activityState(), staleDate: staleDate)
+        // with a push token LifeOS can mark it stopped if the app dies; without
+        // push (older build profile) it still shows, just without that backstop
+        activity = (try? Activity.request(attributes: attributes, content: content, pushType: .token))
+            ?? (try? Activity.request(attributes: attributes, content: content))
+        pushToken = nil
+        tokenTask?.cancel()
+        if let activity {
+            tokenTask = Task { [weak self] in
+                for await data in activity.pushTokenUpdates {
+                    let hex = data.map { String(format: "%02x", $0) }.joined()
+                    await MainActor.run { self?.pushToken = hex; self?.sendLive("recording") }
+                }
+            }
+        }
+        sendLive("recording")
+    }
+
+    /// Tell LifeOS the recording's state (heartbeat / pause / resume / end).
+    private func sendLive(_ state: String) {
+        guard let lecture = current, LifeOSClient.shared.isConnected else { return }
+        let id = lecture.id, token = pushToken, started = Date().addingTimeInterval(-elapsed)
+        Task { [weak self] in
+            let ok = await LifeOSClient.shared.live(id, state: state, token: token, startedAt: started)
+            guard state == "recording" else { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.heartbeats.beat(at: Date(), delivered: ok)
+                RecordingDiagnostics.save(self.heartbeats, activity: self.activity.map { "\($0.activityState)" } ?? "none")
+            }
+        }
+    }
+
+    private func startPathMonitor() {
+        stopPathMonitor()
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in
+                guard let self, self.isRecording, !self.isPaused else { return }
+                self.sendLive("recording")
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "lectures.path"))
+        pathMonitor = monitor
+    }
+
+    private func stopPathMonitor() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
     }
 
     private func updateActivity(force: Bool) {
@@ -255,9 +314,7 @@ final class LectureRecorder {
         Task { await activity.update(ActivityContent(state: state, staleDate: stale)) }
     }
 
-    /// Only a long silence (15 min) makes the Live Activity say "no signal" -
-    /// a late refresh with the phone locked must not look like a crash
-    /// (LiveActivityPolicy; the crash alert is the CrashWatchdog notification).
+    /// Never a stale date: only LifeOS's push can say "stopped" (LiveActivityPolicy).
     private var staleDate: Date? { LiveActivityPolicy.staleDate(now: Date(), paused: isPaused) }
 
     // MARK: crash watchdog (Colby lost 15 min to a silent crash, 2026-11-09)
@@ -276,10 +333,10 @@ final class LectureRecorder {
         }
     }
 
+    /// Every 20 s: tell LifeOS we're alive (the Live Activity itself only
+    /// changes on start / pause / resume / stop).
     private func heartbeat() {
-        heartbeats.beat(at: Date())
-        updateActivity(force: true)
-        RecordingDiagnostics.save(heartbeats, activity: activity.map { "\($0.activityState)" } ?? "none")
+        sendLive("recording")
     }
 
     private func disarmWatchdog() {
@@ -289,13 +346,23 @@ final class LectureRecorder {
     }
 
     private func endActivity() async {
+        tokenTask?.cancel()
+        tokenTask = nil
+        pushToken = nil
         await activity?.end(nil, dismissalPolicy: .immediate)
         activity = nil
     }
 
-    /// A crash leaves its Live Activity behind; clear it on launch.
+    /// A crash leaves its Live Activity behind; clear it on launch (never the
+    /// one recording right now) and tell LifeOS it ended.
     static func endOrphanedActivities() async {
-        for a in Activity<LectureActivityAttributes>.activities { await a.end(nil, dismissalPolicy: .immediate) }
+        let live = shared.activity?.id
+        for a in Activity<LectureActivityAttributes>.activities where a.id != live {
+            if let raw = a.attributes.lectureId, let id = UUID(uuidString: raw) {
+                await LifeOSClient.shared.live(id, state: "ended", token: nil, startedAt: nil)
+            }
+            await a.end(nil, dismissalPolicy: .immediate)
+        }
     }
 
     // MARK: interruptions (calls, Siri) and route changes (AirPods)

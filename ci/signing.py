@@ -149,17 +149,45 @@ def bundle_id(target, ident):
     return bundle["id"]
 
 
+PUSH_TARGETS = {"Lectures"}  # aps-environment: LifeOS pushes the recording Live Activity
+
+
+def ensure_push(target, ident):
+    """Turn on Push Notifications for the App ID (once). Non-fatal: without it
+    the app still builds, the Live Activity just has no server backstop."""
+    bid = bundle_id(target, ident)
+    req = urllib.request.Request(API + f"/bundleIds/{bid}/bundleIdCapabilities")
+    req.add_header("Authorization", "Bearer " + token())
+    try:
+        with urllib.request.urlopen(req) as r:
+            caps = json.loads(r.read() or b"{}").get("data", [])
+        if any(c["attributes"].get("capabilityType") == "PUSH_NOTIFICATIONS" for c in caps):
+            return
+        body = {"data": {"type": "bundleIdCapabilities", "attributes": {"capabilityType": "PUSH_NOTIFICATIONS"},
+                         "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}}}}}
+        req = urllib.request.Request(API + "/bundleIdCapabilities", method="POST", data=json.dumps(body).encode())
+        req.add_header("Authorization", "Bearer " + token())
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req):
+            print(f"Push Notifications turned on for {ident}")
+    except urllib.error.HTTPError as e:
+        print(f"WARNING: could not turn on push for {ident}: {e.code} {e.read().decode()[:300]}")
+
+
 def profile_for(target, ident, cert_id, all_profiles):
     """Reuse the active 'Lectures CI <target>' profile holding our certificate, else replace it.
     The name must NOT start with "LifeOS CI " - LifeOS's own signing deletes those."""
     name = f"Lectures CI {target}"
+    if target in PUSH_TARGETS:
+        ensure_push(target, ident)
     keep = None
     for prof in all_profiles:
         a = prof["attributes"]
         if a.get("name") != name:
             continue
         certs = [c["id"] for c in (prof.get("relationships", {}).get("certificates", {}).get("data") or [])]
-        if keep is None and a.get("profileState") == "ACTIVE" and cert_id in certs:
+        has_push = b"aps-environment" in base64.b64decode(a.get("profileContent") or "")
+        if keep is None and a.get("profileState") == "ACTIVE" and cert_id in certs and (has_push or target not in PUSH_TARGETS):
             keep = prof
         else:
             call("DELETE", f"/profiles/{prof['id']}", missing_ok=True)

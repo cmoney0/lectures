@@ -74,15 +74,15 @@ struct SettingsView: View {
 
                 if let diag = RecordingDiagnostics.last {
                     Section {
-                        LabeledContent("Heartbeats", value: "\(diag.log.beats)")
+                        LabeledContent("Check-ins with LifeOS", value: "\(diag.log.delivered) of \(diag.log.beats)")
                         LabeledContent("Longest gap", value: Clock.string(diag.log.maxGap))
                         LabeledContent("Live Activity", value: diag.activity)
                     } header: {
                         Text("Last recording")
                     } footer: {
-                        Text(diag.log.wasLate()
-                             ? "iOS held the app back at least once while the phone was locked (normal ~0:20). The recording kept going; the Lock Screen now only says \"no signal\" after 15 minutes of silence."
-                             : "The app checked in every ~20 s the whole time.")
+                        Text(diag.log.wouldLookLost
+                             ? "iOS held the app back once for longer than 75 s. LifeOS may have shown \"Recording stopped\" and put it back on the next check-in."
+                             : "The app checked in with LifeOS every ~20 s. The Lock Screen only says \"Recording stopped\" when LifeOS hears nothing for 75 s.")
                     }
                 }
             }

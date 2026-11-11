@@ -161,7 +161,7 @@ final class LifeOSClient {
               let link = json["url"] as? String, let url = URL(string: link) else { throw LifeOSError.server("No upload link came back.") }
         var req = URLRequest(url: url)
         req.httpMethod = "PUT"
-        req.timeoutInterval = 600
+        req.timeoutInterval = timeout0
         req.setValue("audio/mp4", forHTTPHeaderField: "Content-Type")
         req.setValue("true", forHTTPHeaderField: "x-upsert")
         let (_, response) = try await URLSession.shared.upload(for: req, fromFile: lecture.audioURL)
@@ -170,6 +170,17 @@ final class LifeOSClient {
     }
 
     /// Starts a cloud transcript of the uploaded audio.
+    /// Recording heartbeat (every 20 s) + state changes: LifeOS pushes the Live
+    /// Activity to "Recording stopped" if these stop (api/_lectures.js handleLive).
+    @discardableResult
+    func live(_ id: UUID, state: String, token: String?, startedAt: Date?) async -> Bool {
+        var body: [String: Any] = ["id": id.uuidString, "state": state]
+        if let token { body["token"] = token }
+        if let startedAt { body["startedAt"] = Int(startedAt.timeIntervalSince1970) }
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return false }
+        return (try? await call("POST", query: [URLQueryItem(name: "live", value: "1")], body: data, timeout: 15)) != nil
+    }
+
     func transcribe(_ id: UUID, engine: TranscriptionEngine) async throws {
         _ = try await call("POST", query: [URLQueryItem(name: "transcribe", value: "1")],
                            body: try JSONSerialization.data(withJSONObject: ["id": id.uuidString, "engine": engine.rawValue]))
@@ -197,7 +208,7 @@ final class LifeOSClient {
 
     // MARK: plumbing
 
-    private func call(_ method: String, query: [URLQueryItem] = [], body: Data? = nil) async throws -> Data {
+    private func call(_ method: String, query: [URLQueryItem] = [], body: Data? = nil, timeout: TimeInterval = 60) async throws -> Data {
         guard let key = Keychain.read() else { throw LifeOSError.notConnected }
         var url = URLComponents(url: Self.base.appendingPathComponent("api/lectures"), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { url.queryItems = query }

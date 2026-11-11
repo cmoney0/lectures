@@ -14,9 +14,14 @@ struct LectureActivityAttributes: ActivityAttributes {
         var pausedElapsed: Double?
         /// Latest finalized transcript line.
         var lastLine: String
+        /// Set only by LifeOS (APNs push) when the app went silent: the
+        /// recording really stopped. The app itself never sets it.
+        var lost: Bool?
     }
 
     var title: String
+    /// Which lecture this is (to tell LifeOS a leftover activity ended).
+    var lectureId: String?
 }
 
 enum LectureColors {
