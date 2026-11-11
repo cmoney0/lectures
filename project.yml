@@ -48,6 +48,8 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         # recording timer + Pause / Stop on the Lock Screen and Dynamic Island
         NSSupportsLiveActivities: true
+        # more frequent Live Activity refreshes (heartbeat while locked, bug 2026-11-11)
+        NSSupportsLiveActivitiesFrequentUpdates: true
         # recordings visible in the Files app (On My iPhone > Lectures > Recordings)
         # so they can be copied to Google Drive for transcription comparisons
         UIFileSharingEnabled: true
@@ -63,6 +65,17 @@ targets:
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) LECTURES_APP"
     dependencies:
       - target: LecturesWidgets
+  # Unit tests for the pure logic in Lectures/Shared (no app host, runs on a simulator in CI)
+  LecturesTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LecturesTests
+      - path: Lectures/Shared/LiveActivityPolicy.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures.tests
+        GENERATE_INFOPLIST_FILE: YES
   # Live Activity + the "Record lecture" Control Center / Lock Screen control
   LecturesWidgets:
     type: app-extension
@@ -87,3 +100,10 @@ schemes:
     build:
       targets:
         Lectures: all
+  LecturesTests:
+    build:
+      targets:
+        LecturesTests: [test]
+    test:
+      targets:
+        - LecturesTests

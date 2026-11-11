@@ -34,6 +34,8 @@ final class LectureRecorder {
     private var activity: Activity<LectureActivityAttributes>?
     private var lastActivityUpdate = Date.distantPast
     private var watchdog: Task<Void, Never>?
+    /// Gaps between heartbeats this recording (Settings > Diagnostics).
+    private var heartbeats = HeartbeatLog()
 
     private var context: ModelContext { Store.container.mainContext }
 
@@ -115,6 +117,7 @@ final class LectureRecorder {
         }
         self.pipeline = pipeline
         current = target
+        heartbeats = HeartbeatLog()
         observeSession()
         startActivity(title: target.title)
         armWatchdog()
@@ -245,17 +248,17 @@ final class LectureRecorder {
     }
 
     private func updateActivity(force: Bool) {
-        guard let activity, force || Date().timeIntervalSince(lastActivityUpdate) > 20 else { return }
+        guard let activity, force || Date().timeIntervalSince(lastActivityUpdate) > LiveActivityPolicy.heartbeat else { return }
         lastActivityUpdate = Date()
         let state = activityState()
         let stale = staleDate
         Task { await activity.update(ActivityContent(state: state, staleDate: stale)) }
     }
 
-    /// While recording, the Live Activity goes stale ~90 s after the app's last
-    /// heartbeat - so if the app dies it shows "Recording stopped" instead of
-    /// pretending to record.
-    private var staleDate: Date? { isPaused ? nil : Date().addingTimeInterval(90) }
+    /// Only a long silence (15 min) makes the Live Activity say "no signal" -
+    /// a late refresh with the phone locked must not look like a crash
+    /// (LiveActivityPolicy; the crash alert is the CrashWatchdog notification).
+    private var staleDate: Date? { LiveActivityPolicy.staleDate(now: Date(), paused: isPaused) }
 
     // MARK: crash watchdog (Colby lost 15 min to a silent crash, 2026-11-09)
 
@@ -266,11 +269,17 @@ final class LectureRecorder {
         watchdog?.cancel()
         watchdog = Task { [weak self] in
             while !Task.isCancelled {
-                CrashWatchdog.schedule(in: 75)
-                self?.updateActivity(force: true)
-                try? await Task.sleep(for: .seconds(20))
+                CrashWatchdog.schedule(in: LiveActivityPolicy.crashNotificationAfter)
+                self?.heartbeat()
+                try? await Task.sleep(for: .seconds(LiveActivityPolicy.heartbeat))
             }
         }
+    }
+
+    private func heartbeat() {
+        heartbeats.beat(at: Date())
+        updateActivity(force: true)
+        RecordingDiagnostics.save(heartbeats, activity: activity.map { "\($0.activityState)" } ?? "none")
     }
 
     private func disarmWatchdog() {
@@ -293,6 +302,9 @@ final class LectureRecorder {
 
     private func observeSession() {
         let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.updateActivity(force: true) }
+        })
         observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
             let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
             guard raw == AVAudioSession.InterruptionType.ended.rawValue else { return }
@@ -313,6 +325,24 @@ final class LectureRecorder {
     private func stopObserving() {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
+    }
+}
+
+/// What the last recording's heartbeat looked like (Settings > Diagnostics):
+/// a long max gap means iOS held back the app while the phone was locked.
+enum RecordingDiagnostics {
+    private static let key = "diag.heartbeats"
+    private static let activityKey = "diag.activityState"
+
+    static func save(_ log: HeartbeatLog, activity: String) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(log), forKey: key)
+        UserDefaults.standard.set(activity, forKey: activityKey)
+    }
+
+    static var last: (log: HeartbeatLog, activity: String)? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let log = try? JSONDecoder().decode(HeartbeatLog.self, from: data) else { return nil }
+        return (log, UserDefaults.standard.string(forKey: activityKey) ?? "unknown")
     }
 }
 

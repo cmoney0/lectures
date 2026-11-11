@@ -25,8 +25,8 @@ struct RecordLectureControl: ControlWidget {
 }
 
 /// Recording indicator + Pause / Stop on the Lock Screen and in the Dynamic Island.
-/// Just a red dot - no timer (Colby). If the app stops heartbeating (crash),
-/// the activity goes stale and says so instead of looking like it's recording.
+/// Just a red dot - no timer (Colby). Only after a long silence (15 min, see
+/// LiveActivityPolicy) does it say "no signal"; crashes alert by notification.
 struct LectureLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LectureActivityAttributes.self) { context in
@@ -43,11 +43,11 @@ struct LectureLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if mode != .stopped { Buttons(paused: mode == .paused) }
+                    if mode.showsControls { Buttons(paused: mode == .paused) }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    if mode == .stopped {
-                        Text("Open Lectures to continue this lecture.").font(.system(size: 13)).foregroundStyle(LectureColors.sub)
+                    if mode == .noSignal {
+                        Text("Open Lectures to check the recording.").font(.system(size: 13)).foregroundStyle(LectureColors.sub)
                     }
                 }
             } compactLeading: {
@@ -61,25 +61,18 @@ struct LectureLiveActivity: Widget {
     }
 }
 
-private enum Mode: Equatable {
-    case recording, paused, stopped
+// Mode = LiveActivityMode (Lectures/Shared/LiveActivityPolicy.swift, unit-tested).
+private typealias Mode = LiveActivityMode
 
+private extension LiveActivityMode {
     init(state: LectureActivityAttributes.ContentState, stale: Bool) {
-        self = stale ? .stopped : (state.pausedElapsed != nil ? .paused : .recording)
-    }
-
-    var label: String {
-        switch self {
-        case .recording: "Recording lecture"
-        case .paused: "Paused"
-        case .stopped: "Recording stopped"
-        }
+        self.init(paused: state.pausedElapsed != nil, stale: stale)
     }
 
     var color: Color {
         switch self {
         case .recording: LectureColors.red
-        case .paused, .stopped: LectureColors.sub
+        case .paused, .noSignal: LectureColors.sub
         }
     }
 }
@@ -90,7 +83,7 @@ private struct RecDot: View {
     let size: CGFloat
 
     var body: some View {
-        if mode == .stopped {
+        if mode == .noSignal {
             Circle().stroke(LectureColors.sub, lineWidth: 2).frame(width: size, height: size)
         } else {
             Circle().fill(mode.color).frame(width: size, height: size)
@@ -107,12 +100,12 @@ private struct LockScreenView: View {
         // No transcript - just the dot, the state and icon-only controls (Colby).
         HStack(spacing: 10) {
             RecDot(mode: mode, size: 12)
-            Text(mode == .stopped ? "Recording stopped - open Lectures" : mode.label)
+            Text(mode.lockScreenText)
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
                 .lineLimit(1)
             Spacer()
-            if mode != .stopped { Buttons(paused: mode == .paused) }
+            if mode.showsControls { Buttons(paused: mode == .paused) }
         }
         .padding(16)
     }

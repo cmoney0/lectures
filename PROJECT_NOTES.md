@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
 
 Changes since then:
+- Live Activity no longer says "Recording stopped" while still recording: 15 min stale window (was 90 s), "No signal - open Lectures to check" wording, refresh on app open, frequent-updates key, Settings > Last recording diagnostics, first unit tests (bug from Colby via School HQ, 2026-11-11).
 - Every lecture goes through AssemblyAI after Stop by default (new setting key, so old on-device picks reset); Deepgram removed; menu item is now "Transcribe with AssemblyAI" (e2af8eb).
 - Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
 - iPad: the app no longer opens squeezed into the left half of the screen - it snaps to the full window at launch and whenever the window resizes.
@@ -243,3 +244,26 @@ Changes since then:
 - If it still happens on the next build: check whether the right half shows the wallpaper/another app (a real half-size window from Windowed Apps / Stage Manager tiling - a Multitasking setting, not the app) or the app's own background (a layout bug - next step would be enabling multiple scenes).
 ### Tests/Verification
 - 1819e7a: branch compile run 42882731661.
+
+## 2026-11-11 - Live Activity said "Recording stopped" while still recording
+
+### What Changed
+- New `Lectures/Shared/LiveActivityPolicy.swift` (app + widget + tests): heartbeat 20 s, crash notification 75 s, Live Activity stale only after **15 min** (was 90 s); `LiveActivityMode` recording / paused / noSignal ("No signal - open Lectures to check", never "stopped"); `HeartbeatLog` of gaps.
+- `LectureRecorder`: uses the policy, logs every heartbeat (`RecordingDiagnostics`, shown in Settings > Last recording: heartbeats, longest gap, Live Activity state), refreshes the Live Activity the moment the app becomes active.
+- Widget uses `LiveActivityMode`. Info.plist `NSSupportsLiveActivitiesFrequentUpdates`.
+- First test target `LecturesTests` (XCTest, no host) + CI step "Unit tests (simulator)" on every push; CI paths now include LecturesWidgets/** and LecturesTests/**.
+
+### Why
+- Reported by Colby via School HQ: the Lock Screen said "Recording stopped" but the app was still recording. The Live Activity went stale 90 s after the last refresh that landed; with the phone locked iOS does not promise a backgrounded app's Live Activity refreshes land on time, so one late refresh looked like a crash. The local crash notification (not throttled) is the real crash alarm and did not fire, so the app really was alive.
+
+### Manual test on the phone (next build)
+1. Record, lock the phone 10+ min: Lock Screen keeps the red dot; then open Settings > Last recording - note the longest gap.
+2. Record, switch to another app 5 min, come back: still recording, no "no signal".
+3. Pause from the Lock Screen 5 min, resume: gray dot while paused, red again after.
+4. Phone call or Siri mid-recording, then back: recording continues, transcript keeps growing.
+5. Swap AirPods in/out mid-recording: keeps recording.
+6. Force-quit while recording: "Lectures stopped recording" notification within ~75 s; Lock Screen shows "No signal" by 15 min; reopening clears it and offers resume.
+
+### Tests/Verification
+- CI compile + unit tests (see commit).
+

@@ -71,6 +71,20 @@ struct SettingsView: View {
                     Text("Start from the Lock Screen / Control Center control, the Action Button (Shortcuts > Record lecture) or Siri: \"Record a lecture in Lectures\".")
                         .font(.m(12)).foregroundStyle(Theme.sub)
                 }
+
+                if let diag = RecordingDiagnostics.last {
+                    Section {
+                        LabeledContent("Heartbeats", value: "\(diag.log.beats)")
+                        LabeledContent("Longest gap", value: Clock.string(diag.log.maxGap))
+                        LabeledContent("Live Activity", value: diag.activity)
+                    } header: {
+                        Text("Last recording")
+                    } footer: {
+                        Text(diag.log.wasLate()
+                             ? "iOS held the app back at least once while the phone was locked (normal ~0:20). The recording kept going; the Lock Screen now only says \"no signal\" after 15 minutes of silence."
+                             : "The app checked in every ~20 s the whole time.")
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.bg)
