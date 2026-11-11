@@ -35,13 +35,9 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 ## Next Build Queue
 
-Last TestFlight build: **24** (6585518, 2026-11-10, approved by Colby: "if they work and are setup correctly push the build of both"). Shipped since build 18: action items card, recordings in Files + Share audio, cloud transcription (AssemblyAI / Deepgram engine setting, Transcribe with..., per-engine transcript view), 32 kbps audio + passthrough merge, OpenAI removed.
+Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
-Changes since then:
-- Live Activity says "Recording stopped" only when it really stopped: no local stale date at all; the app heartbeats LifeOS every 20 s and LifeOS pushes the Live Activity (APNs) after 75 s of silence, then puts it back if the app checks in again. Push entitlement + signing turns on Push for the App ID. Settings > Last recording diagnostics; 18 unit tests (Colby via School HQ, 2026-11-11).
-- Every lecture goes through AssemblyAI after Stop by default (new setting key, so old on-device picks reset); Deepgram removed; menu item is now "Transcribe with AssemblyAI" (e2af8eb).
-- Review versions dropdown in a lecture ("v2 · AssemblyAI ▾"): every transcript gets its own review, pick which one the Review / Cards / Quiz / Guide tabs show (f4546d5).
-- iPad: the app no longer opens squeezed into the left half of the screen - it snaps to the full window at launch and whenever the window resizes.
+Changes since then: none.
 
 ## 2026-11-05 - v1 app
 
