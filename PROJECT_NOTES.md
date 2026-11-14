@@ -296,3 +296,15 @@ Changes since then:
 ### Tests/Verification
 - CI compile + unit tests (see commit).
 
+## 2026-11-14 - No automatic CI (credits)
+
+### What Changed
+- `.github/workflows/ios.yml`: the `push` trigger is gone; the workflow is manual-only (`workflow_dispatch`). TestFlight ticked = archive + upload; unticked = compile + unit tests.
+- `CLAUDE.md` rule: no automatic CI; never start a run (compile or TestFlight) unless Colby asks; Swift changes get checked at the next build he approves.
+
+### Why
+- Colby (via School HQ): the compile checks on every push were using his GitHub Actions credits (macOS minutes bill 10x) - "already through $20 ... is there a way to just completely skip this compile check".
+
+### Design/Workflow Notes
+- With no compile check, the next approved TestFlight build is the first compile of anything pushed since. Keep Swift changes small and reviewed; if a build fails, fix and re-run only with his OK.
+

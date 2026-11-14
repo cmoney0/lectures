@@ -1,8 +1,8 @@
 # Lectures iOS app.
 #
-#   push to main - generate the Xcode project and compile for the simulator
-#   manual run   - "Run workflow" with TestFlight ticked archives, signs and
-#                  uploads to TestFlight. ONLY when Colby approves a build.
+#   manual run only (no runs on push since 2026-11-14 - macOS minutes cost
+#   credits): "Run workflow" with TestFlight ticked archives, signs and uploads
+#   to TestFlight; unticked it compiles + runs the unit tests. ONLY when Colby asks.
 #
 # Secrets (Settings > Secrets and variables > Actions): APPLE_TEAM_ID,
 # ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (the whole .p8 file) - the same
@@ -11,15 +11,9 @@
 name: iOS
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'Lectures/**'
-      - 'LecturesWidgets/**'
-      - 'LecturesTests/**'
-      - 'project.yml'
-      - 'ci/**'
-      - '.github/workflows/ios.yml'
+  # No automatic runs (Colby, 2026-11-14: macOS runner minutes cost credits).
+  # Manual only: "Run workflow" with TestFlight ticked = build + upload;
+  # unticked = compile + unit tests. Only when Colby asks.
   workflow_dispatch:
     inputs:
       testflight:
