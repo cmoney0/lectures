@@ -7,6 +7,7 @@ Read `PROJECT_NOTES.md` before meaningful work and add a dated entry after every
 ## Rules
 
 - **Same response style as LifeOS:** start with a `---` line, short bold `##` sections, concise, plain-language outcomes, no pasted code unless asked, a crisp recommendation.
+- **No-news turns = one italic sentence (Colby, 2026-11-14).** When you're just waiting (on CI, an agent, a reply) or the turn has no real news or question for him, reply with ONE italic sentence only - no `---`, no sections, no Next build. The full format (including Next build) is only for real news or a question.
 - **TestFlight needs Colby's explicit approval, every time.** Never start the workflow's manual run with `testflight: true` on your own. End every reply with a **Next build** list of changes since the last TestFlight build (kept in `PROJECT_NOTES.md` > Next Build Queue). List **only Lectures changes** there - never LifeOS native changes, even in a session that also has LifeOS open (Colby, 2026-11-05).
 - Land finished work on `main` (standing permission; on a pinned web-session branch push it, open a PR to `main`, merge it).
 - There is no Mac, and **no automatic CI** (Colby, 2026-11-14: macOS runner minutes cost credits). The iOS workflow is manual-only: never start a run (compile or TestFlight) unless Colby asks. Swift changes are checked at the next build he approves - review them carefully before pushing.

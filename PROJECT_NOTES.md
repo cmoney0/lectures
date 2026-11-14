@@ -308,3 +308,11 @@ Changes since then:
 ### Design/Workflow Notes
 - With no compile check, the next approved TestFlight build is the first compile of anything pushed since. Keep Swift changes small and reviewed; if a build fails, fix and re-run only with his OK.
 
+## 2026-11-14 - Reply style: one italic sentence on no-news turns
+
+### What Changed
+- `CLAUDE.md` response style: when waiting or with no real news / question, reply with ONE italic sentence (no `---`, sections or Next build); the full format only for real news or a question.
+
+### Why
+- Colby (via School HQ, for all sessions).
+
