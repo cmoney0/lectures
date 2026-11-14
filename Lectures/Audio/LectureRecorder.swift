@@ -40,6 +40,9 @@ final class LectureRecorder {
     /// The Live Activity's APNs token: LifeOS pushes "Recording stopped" with it.
     private var pushToken: String?
     private var tokenTask: Task<Void, Never>?
+    /// The Live Activity button just tapped (its pulse) and the stop/saved states.
+    private var tap: LectureTap?
+    private var stopping = false
     /// Back online after a dead spot: heartbeat at once so LifeOS never thinks it stopped.
     private var pathMonitor: NWPathMonitor?
 
@@ -152,7 +155,25 @@ final class LectureRecorder {
             try? context.save()
             sendLive("paused")
         }
+        pulse("pause")
+    }
+
+    /// Instant tap feedback on the Live Activity: step 0 now, then the ring
+    /// (LectureTapAnim) while the real work carries on.
+    private func pulse(_ key: String) {
+        let t = LectureTap(key: key, step: 0)
+        tap = t
         updateActivity(force: true)
+        Task { [weak self] in
+            await LectureTapAnim.play { step in
+                await MainActor.run {
+                    guard let self, self.tap?.id == t.id, self.activity != nil else { return false }
+                    self.tap = step.map { LectureTap(key: key, step: $0, id: t.id) }
+                    self.updateActivity(force: true)
+                    return true
+                }
+            }
+        }
     }
 
     // MARK: stop
@@ -165,6 +186,10 @@ final class LectureRecorder {
         let task = UIApplication.shared.beginBackgroundTask(withName: "finish-lecture")
         defer { UIApplication.shared.endBackgroundTask(task) }
 
+        // the Live Activity answers at once: Stop pulses, the label says Saving...
+        let tappedAt = Date()
+        stopping = true
+        pulse("stop")
         stopObserving()
         disarmWatchdog()
         stopPathMonitor()
@@ -182,7 +207,12 @@ final class LectureRecorder {
         lecture.uploadedAt = nil
         try? context.save()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        await endActivity()
+        // let the pulse finish, show "Saved" for a moment, then go away
+        let played = UInt64(max(0, Date().timeIntervalSince(tappedAt)) * 1000)
+        if played < LectureTapAnim.totalMs { try? await Task.sleep(nanoseconds: (LectureTapAnim.totalMs - played) * 1_000_000) }
+        await endActivity(saved: true)
+        stopping = false
+        tap = nil
         self.pipeline = nil
         current = nil
         isPaused = false
@@ -248,7 +278,9 @@ final class LectureRecorder {
             startedAt: Date().addingTimeInterval(-elapsed),
             pausedElapsed: isPaused ? elapsed : nil,
             lastLine: liveLines.last?.text ?? "Listening...",
-            lost: nil)
+            lost: nil,
+            tap: tap,
+            stopping: stopping ? true : nil)
     }
 
     private func startActivity(title: String, lectureId: UUID) {
@@ -345,11 +377,20 @@ final class LectureRecorder {
         CrashWatchdog.cancel()
     }
 
-    private func endActivity() async {
+    /// `saved`: show "Saved - sending to Claude" for ~2 s before it disappears.
+    private func endActivity(saved: Bool = false) async {
         tokenTask?.cancel()
         tokenTask = nil
         pushToken = nil
-        await activity?.end(nil, dismissalPolicy: .immediate)
+        if saved, let activity {
+            var final = activityState()
+            final.tap = nil
+            final.stopping = nil
+            final.saved = true
+            await activity.end(ActivityContent(state: final, staleDate: nil), dismissalPolicy: .after(Date().addingTimeInterval(2)))
+        } else {
+            await activity?.end(nil, dismissalPolicy: .immediate)
+        }
         activity = nil
     }
 

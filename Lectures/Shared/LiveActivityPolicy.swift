@@ -41,11 +41,14 @@ enum LiveActivityPolicy {
 
 /// What the Lock Screen / Dynamic Island shows.
 enum LiveActivityMode: Equatable {
-    case recording, paused, stopped
+    case recording, paused, stopped, saving, saved
 
     /// `lost` comes only from LifeOS; `stale` (the system's flag) is ignored on purpose.
-    init(paused: Bool, lost: Bool) {
-        self = lost ? .stopped : (paused ? .paused : .recording)
+    /// `stopping` / `saved` come from the app right after Stop is tapped.
+    init(paused: Bool, lost: Bool, stopping: Bool = false, saved: Bool = false) {
+        if saved { self = .saved }
+        else if stopping { self = .saving }
+        else { self = lost ? .stopped : (paused ? .paused : .recording) }
     }
 
     var label: String {
@@ -53,15 +56,21 @@ enum LiveActivityMode: Equatable {
         case .recording: "Recording lecture"
         case .paused: "Paused"
         case .stopped: "Recording stopped"
+        case .saving: "Saving lecture..."
+        case .saved: "Saved"
         }
     }
 
     var lockScreenText: String {
-        self == .stopped ? "Recording stopped - tap to resume" : label
+        switch self {
+        case .stopped: "Recording stopped - tap to resume"
+        case .saved: "Saved - sending to Claude"
+        default: label
+        }
     }
 
-    /// Pause / Stop only make sense while the app is recording.
-    var showsControls: Bool { self != .stopped }
+    /// Pause / Stop only make sense while recording (Stop stays while saving, mid-pulse).
+    var showsControls: Bool { self == .recording || self == .paused || self == .saving }
 }
 
 /// Heartbeats to LifeOS during one recording (Settings > Last recording).

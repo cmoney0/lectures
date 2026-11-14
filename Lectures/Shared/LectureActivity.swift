@@ -17,6 +17,12 @@ struct LectureActivityAttributes: ActivityAttributes {
         /// Set only by LifeOS (APNs push) when the app went silent: the
         /// recording really stopped. The app itself never sets it.
         var lost: Bool?
+        /// The button just tapped, for its pulse (LiveActivityTap.swift).
+        var tap: LectureTap? = nil
+        /// Stop tapped: saving the lecture (the activity ends a moment later).
+        var stopping: Bool? = nil
+        /// Saved - shown for a moment before the activity goes away.
+        var saved: Bool? = nil
     }
 
     var title: String

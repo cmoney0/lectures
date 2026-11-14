@@ -136,4 +136,49 @@ final class LiveActivityPolicyTests: XCTestCase {
         let back = try JSONDecoder().decode(HeartbeatLog.self, from: JSONEncoder().encode(log))
         XCTAssertEqual(back, log)
     }
+
+    // MARK: tap feedback (2026-11-14)
+
+    func testTapStepOnlyForTheTappedButton() {
+        let tap: LectureTap? = LectureTap(key: "pause", step: 1)
+        XCTAssertEqual(tap.step("pause"), 1)
+        XCTAssertNil(tap.step("stop"))
+        let none: LectureTap? = nil
+        XCTAssertNil(none.step("pause"))
+    }
+
+    func testTapAnimationRunsRingOnRingAwayIdleAndIsQuick() {
+        XCTAssertEqual(LectureTapAnim.plan.map(\.step), [1, 2, nil])
+        XCTAssertLessThan(LectureTapAnim.totalMs, 2_000, "the pulse must feel instant, not hold Stop up")
+        XCTAssertLessThan(LectureTapAnim.plan.first!.ms, 400, "the ring starts right after the bloom")
+    }
+
+    func testTapAnimationStopsWhenANewerTapReplacesIt() async {
+        var seen: [Int?] = []
+        await LectureTapAnim.play { step in
+            seen.append(step)
+            return false   // a newer tap took over
+        }
+        XCTAssertEqual(seen.count, 1)
+    }
+
+    func testStopShowsSavingThenSaved() {
+        XCTAssertEqual(LiveActivityMode(paused: false, lost: false, stopping: true), .saving)
+        XCTAssertEqual(LiveActivityMode(paused: false, lost: false, stopping: true, saved: true), .saved)
+        XCTAssertTrue(LiveActivityMode.saving.showsControls, "Stop keeps its pulse while saving")
+        XCTAssertFalse(LiveActivityMode.saved.showsControls)
+        XCTAssertEqual(LiveActivityMode.saved.lockScreenText, "Saved - sending to Claude")
+    }
+
+    func testTapStateRoundTripsAndOldStatesStillDecode() throws {
+        var state = LectureActivityAttributes.ContentState(startedAt: t0, pausedElapsed: nil, lastLine: "", lost: nil)
+        state.tap = LectureTap(key: "stop", step: 0)
+        state.stopping = true
+        let back = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(back, state)
+        let old = #"{"startedAt": 784893600, "lastLine": ""}"#
+        let decoded = try JSONDecoder().decode(LectureActivityAttributes.ContentState.self, from: Data(old.utf8))
+        XCTAssertNil(decoded.tap)
+        XCTAssertNil(decoded.stopping)
+    }
 }

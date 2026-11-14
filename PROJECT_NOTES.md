@@ -37,7 +37,8 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 
 Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
-Changes since then: none.
+Changes since then:
+- Live Activity buttons react instantly: Pause / Play pulse (bloom, then a ring draws round and away, like the LifeOS habit logger); Stop pulses, the label turns "Saving lecture...", then "Saved - sending to Claude" with a check for ~2 s before it goes away (Colby via School HQ, 2026-11-14).
 
 ## 2026-11-05 - v1 app
 
@@ -276,6 +277,21 @@ Changes since then: none.
 
 ### Server status
 - Supabase migration `lecture_live_heartbeat` applied 2026-11-11 with Colby's OK and verified end to end (cron -> LifeOS -> APNs within 10 s). Rows whose token Apple rejects are ended (lifeos #746).
+
+### Tests/Verification
+- CI compile + unit tests (see commit).
+
+## 2026-11-14 - Live Activity tap animations
+
+### What Changed
+- New `Lectures/Shared/LiveActivityTap.swift` (app + widget + tests): `LectureTap` / `LectureTapAnim` / `LectureTapRing`, copied from LifeOS's LOSTap / LOSTapAnim / LOSTapRing (lifeos PR #768) - the apps don't share code.
+- `ContentState` gains `tap`, `stopping`, `saved` (all optional, old states still decode).
+- `LectureRecorder.pulse(_:)`: the intent puts step 0 (bloom) into the activity at once, then rings on / away / idle (260 / 800 / 760 ms). Pause and Stop pulse; Stop shows "Saving lecture..." while it finishes, holds until the pulse has played, then ends with "Saved - sending to Claude" (check icon) and dismisses after 2 s.
+- Widget buttons: ring drawn behind each button, `.invalidatableContent()` on the icons, symbol replace on pause/play.
+- `LiveActivityMode` gains `.saving` / `.saved`. 5 new unit tests (23 total).
+
+### Why
+- Colby: "there needs to be some animations right away as you click the buttons ... pulsing and loading ... exactly how the habit logger animations are." LOS - Real App flagged the Lectures buttons as having no feedback.
 
 ### Tests/Verification
 - CI compile + unit tests (see commit).

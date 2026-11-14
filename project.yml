@@ -78,6 +78,7 @@ targets:
       - path: LecturesTests
       - path: Lectures/Shared/LiveActivityPolicy.swift
       - path: Lectures/Shared/LectureActivity.swift
+      - path: Lectures/Shared/LiveActivityTap.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cmoney0.lectures.tests
