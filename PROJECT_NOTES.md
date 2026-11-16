@@ -327,3 +327,18 @@ Changes since then:
 ### Tests/Verification
 - No CI (manual-only). Code reviewed by hand; compiles at the next approved build.
 
+## 2026-11-16 - Local builds on Colby's Mac (lectures / lectures-tf)
+
+### What Changed
+- `scripts/regenerate.sh` (alias `lectures`): XcodeGen with `LECTURES_TEAM_ID` read from `~/.lifeos-team-id` (the file LifeOS's `lifeos-tf` saves), so the Xcode project opens with signing set up.
+- `scripts/testflight.sh` (alias `lectures-tf`): pull main -> regenerate -> archive Release with automatic signing (`-allowProvisioningUpdates`) -> upload to TestFlight; build number from `~/.lectures-build-number` (starts above 34, the last GitHub build); Xcode bumps past any existing number. Copied from LifeOS's `ios/scripts/testflight.sh` (lifeos #797/#798/#801).
+- `project.yml`: `DEVELOPMENT_TEAM: ${LECTURES_TEAM_ID}` (empty in CI, which passes its own).
+- `CLAUDE.md`: builds happen on his Mac; never GitHub Actions; `lectures-tf` only when he says "build".
+
+### One-time setup on the Mac
+- `git clone https://github.com/cmoney0/lectures ~/lectures`
+- `~/.zshrc`: `alias lectures='sh ~/lectures/scripts/regenerate.sh && open ~/lectures/Lectures.xcodeproj'` and `alias lectures-tf='sh ~/lectures/scripts/testflight.sh'`
+
+### Tests/Verification
+- `sh -n` syntax check of both scripts (no Mac here); first real run is his.
+

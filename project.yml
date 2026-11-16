@@ -13,6 +13,9 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
+    # Colby's Mac: scripts/regenerate.sh fills this from ~/.lifeos-team-id at
+    # generate time; the GitHub workflow passes DEVELOPMENT_TEAM itself.
+    DEVELOPMENT_TEAM: ${LECTURES_TEAM_ID}
     SWIFT_VERSION: "5.0"
     # iPhone records; iPad reads the in-depth study guides (lectures sync down from LifeOS)
     TARGETED_DEVICE_FAMILY: "1,2"
