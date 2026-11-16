@@ -84,6 +84,8 @@ private extension LiveActivityMode {
 private struct RecDot: View {
     let mode: Mode
     let size: CGFloat
+    /// The recording color: red in the Dynamic Island, the theme color on the Lock Screen (Colby, 2026-11-16).
+    var live: Color = LectureColors.red
 
     var body: some View {
         if mode == .stopped {
@@ -92,7 +94,7 @@ private struct RecDot: View {
             Image(systemName: "checkmark.circle.fill").font(.system(size: size + 2, weight: .bold))
                 .foregroundStyle(LectureColors.accent)
         } else {
-            Circle().fill(mode.color).frame(width: size, height: size)
+            Circle().fill(mode == .recording ? live : mode.color).frame(width: size, height: size)
         }
     }
 }
@@ -104,13 +106,13 @@ private struct LockScreenView: View {
         let mode = Mode(state: state)
         // No transcript - just the dot, the state and icon-only controls (Colby).
         HStack(spacing: 10) {
-            RecDot(mode: mode, size: 12)
+            RecDot(mode: mode, size: 12, live: LectureColors.accent)
             Text(mode.lockScreenText)
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
                 .lineLimit(1)
             Spacer()
-            if mode.showsControls { Buttons(state: state, paused: mode == .paused) }
+            if mode.showsControls { Buttons(state: state, paused: mode == .paused, stopColor: LectureColors.accent) }
         }
         .padding(16)
     }
@@ -119,6 +121,8 @@ private struct LockScreenView: View {
 private struct Buttons: View {
     let state: LectureActivityAttributes.ContentState
     let paused: Bool
+    /// Stop's color: red in the Dynamic Island, the theme color on the Lock Screen.
+    var stopColor: Color = LectureColors.red
     /// The bordered circle button's size (22 pt icon frame + padding).
     private let size: CGFloat = 40
 
@@ -143,9 +147,9 @@ private struct Buttons: View {
                     .frame(width: 22, height: 22)
                     .invalidatableContent()
             }
-            .tint(LectureColors.red)
+            .tint(stopColor)
             .background {
-                LectureTapRing(shape: Circle(), step: state.tap.step("stop"), color: LectureColors.red)
+                LectureTapRing(shape: Circle(), step: state.tap.step("stop"), color: stopColor)
                     .frame(width: size, height: size)
             }
         }

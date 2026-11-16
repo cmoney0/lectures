@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
 Changes since then:
+- Lock Screen Live Activity uses the theme color (Claude orange) for the recording dot, Stop button and its pulse; the Dynamic Island stays red (Colby via HQ, 2026-11-16).
 - Canvas count card at the top of Materials reviews (count + Yes / No on unsure sentences, saved to LifeOS; hides the plain "Canvas count" section) (Colby via School HQ, 2026-11-16).
 - Live Activity buttons react instantly: Pause / Play pulse (bloom, then a ring draws round and away, like the LifeOS habit logger); Stop pulses, the label turns "Saving lecture...", then "Saved - sending to Claude" with a check for ~2 s before it goes away (Colby via School HQ, 2026-11-14).
 
@@ -348,3 +349,15 @@ Changes since then:
 - **What:** no-news / waiting turns and any internal status line are one italic sentence in a blockquote (`> *...*`), which the Claude app shows indented and dimmed. `CLAUDE.md` updated (LifeOS `CLAUDE.md` + response-format hook got the same rule).
 - **Why:** Colby (via HQ): "all the internal talk needs to be the indented dimmed text".
 - **Files:** `CLAUDE.md`, `PROJECT_NOTES.md`. Docs only.
+
+## 2026-11-16 - Lock Screen Live Activity in the theme color
+
+### What Changed
+- `LecturesWidgets/LecturesWidgets.swift`: `RecDot` takes a `live` color and `Buttons` a `stopColor`; the Lock Screen passes `LectureColors.accent` (#C96442), the Dynamic Island keeps the red defaults.
+
+### Why
+- Colby: "the top activity can be red ... but the lock screen live activity needs to be the theme color."
+
+### Tests/Verification
+- No CI; reviewed by hand (memberwise init order checked). Compiles at his next Cmd-R / lectures-tf.
+
