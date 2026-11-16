@@ -342,3 +342,9 @@ Changes since then:
 ### Tests/Verification
 - `sh -n` syntax check of both scripts (no Mac here); first real run is his.
 
+
+## 2026-11-16 - Reply style: internal talk is indented dimmed text
+
+- **What:** no-news / waiting turns and any internal status line are one italic sentence in a blockquote (`> *...*`), which the Claude app shows indented and dimmed. `CLAUDE.md` updated (LifeOS `CLAUDE.md` + response-format hook got the same rule).
+- **Why:** Colby (via HQ): "all the internal talk needs to be the indented dimmed text".
+- **Files:** `CLAUDE.md`, `PROJECT_NOTES.md`. Docs only.
