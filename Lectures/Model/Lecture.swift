@@ -302,6 +302,17 @@ struct LectureReview: Codable {
     /// Things to do / prepare for that the professor mentioned; also sent to
     /// LOS for Colby to approve (REVIEWER.md step 7).
     var actionItems: [Action]?
+    /// Materials lectures: how many times the professor said "Canvas" (Colby,
+    /// 2026-11-16). `unsure` sentences get a Yes / No in the app.
+    var canvasCount: CanvasCount?
+
+    struct CanvasCount: Codable, Hashable {
+        struct Mention: Codable, Hashable { var at: String?; var text: String? }
+        struct Check: Codable, Hashable { var at: String?; var text: String?; var heard: String?; var answer: Bool? }
+        var count: Int?
+        var sure: [Mention]?
+        var unsure: [Check]?
+    }
 
     struct Action: Codable, Hashable { var kind: String?; var text: String?; var date: String?; var time: String?; var proposal: String? }
 }

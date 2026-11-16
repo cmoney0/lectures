@@ -47,7 +47,7 @@ struct LectureDetailView: View {
                 switch review == nil ? 3 : tab {
                 case 4:
                     if let guide = review?.guide { GuideView(guide: guide) }
-                case 0: ReviewNotesView(review: review!) { stamp in seek(stamp) }
+                case 0: ReviewNotesView(review: review!, lectureId: lecture.id) { stamp in seek(stamp) }
                 case 1: FlashcardsView(cards: review?.flashcards ?? [])
                 case 2: QuizView(questions: review?.quiz ?? [])
                 default: transcriptSection

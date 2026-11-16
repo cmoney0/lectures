@@ -4,10 +4,21 @@ import UIKit
 /// Claude's notes: summary, exam flags, sections, key terms, follow-ups.
 struct ReviewNotesView: View {
     let review: LectureReview
+    var lectureId: UUID? = nil
     var seek: (String?) -> Void
+
+    /// The "Canvas count" section is for older builds; the card replaces it here.
+    private var sections: [LectureReview.Section] {
+        let all = review.sections ?? []
+        guard review.canvasCount != nil else { return all }
+        return all.filter { !($0.heading ?? "").hasPrefix("Canvas count") }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let canvas = review.canvasCount {
+                CanvasCountCard(canvas: canvas, lectureId: lectureId, seek: seek)
+            }
             if let actions = review.actionItems, !actions.isEmpty {
                 Card {
                     Label("Action items", systemImage: "checklist").font(.m(13, .heavy)).foregroundStyle(Theme.accent)
@@ -31,7 +42,7 @@ struct ReviewNotesView: View {
                     }
                 }
             }
-            ForEach(review.sections ?? [], id: \.self) { section in
+            ForEach(sections, id: \.self) { section in
                 Card {
                     Text(section.heading ?? "").font(.m(16, .bold)).foregroundStyle(Theme.text)
                     ForEach(section.points ?? [], id: \.self) { point in
@@ -326,4 +337,81 @@ extension ISO8601DateFormatter {
         f.timeZone = TimeZone(identifier: "America/Chicago")
         return f
     }()
+}
+
+
+/// Materials: how many times the professor said "Canvas", and Yes / No on the
+/// sentences Claude wasn't sure about (Colby, 2026-11-16). Answers save to
+/// LifeOS (POST ?canvas=1) and show here at once.
+struct CanvasCountCard: View {
+    let canvas: LectureReview.CanvasCount
+    let lectureId: UUID?
+    var seek: (String?) -> Void
+    /// Answers given on this screen, over what LifeOS had.
+    @State private var local: [Int: Bool?] = [:]
+
+    private var checks: [LectureReview.CanvasCount.Check] { canvas.unsure ?? [] }
+    private func answer(_ i: Int) -> Bool? { local[i] ?? checks[i].answer }
+    private var count: Int { (canvas.sure ?? []).count + checks.indices.filter { answer($0) == true }.count }
+    private var open: Int { checks.indices.filter { answer($0) == nil }.count }
+
+    var body: some View {
+        Card {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Canvas count", systemImage: "number").font(.m(13, .heavy)).foregroundStyle(Theme.accent)
+                Spacer()
+                Text("\(count)").font(.m(28, .heavy)).monospacedDigit().foregroundStyle(Theme.text)
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: count)
+            }
+            if open > 0 {
+                Text("\(open) to check").font(.m(12, .bold)).foregroundStyle(Theme.sub)
+            }
+            ForEach(checks.indices, id: \.self) { i in
+                CanvasCheckRow(check: checks[i], answer: answer(i), seek: seek) { value in
+                    local[i] = .some(value)
+                    guard let lectureId else { return }
+                    Task { await LifeOSClient.shared.answerCanvas(lectureId, index: i, answer: value) }
+                }
+            }
+        }
+    }
+}
+
+private struct CanvasCheckRow: View {
+    let check: LectureReview.CanvasCount.Check
+    let answer: Bool?
+    var seek: (String?) -> Void
+    var set: (Bool?) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let at = check.at, !at.isEmpty {
+                    Button(at) { seek(at) }.font(.m(11, .semibold)).monospacedDigit().foregroundStyle(Theme.accent).buttonStyle(.plain)
+                }
+                Text(check.text ?? "").font(.m(14)).foregroundStyle(answer == false ? Theme.sub : Theme.text)
+                    .strikethrough(answer == false)
+            }
+            HStack(spacing: 8) {
+                pill("Yes", on: answer == true) { set(answer == true ? nil : true) }
+                pill("No", on: answer == false) { set(answer == false ? nil : false) }
+                if let heard = check.heard, !heard.isEmpty {
+                    Text("heard \"\(heard)\"").font(.m(11)).foregroundStyle(Theme.sub)
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func pill(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.m(12, .bold))
+                .padding(.horizontal, 14).frame(height: 28)
+                .foregroundStyle(on ? Color.white : Theme.text)
+                .background(on ? Theme.accent : Theme.bg, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: on)
+    }
 }

@@ -181,6 +181,15 @@ final class LifeOSClient {
         return (try? await call("POST", query: [URLQueryItem(name: "live", value: "1")], body: data, timeout: 15)) != nil
     }
 
+    /// Yes / No on an unsure "Canvas" sentence (nil = undo); LifeOS recounts.
+    @discardableResult
+    func answerCanvas(_ id: UUID, index: Int, answer: Bool?) async -> Bool {
+        var body: [String: Any] = ["id": id.uuidString, "index": index]
+        body["answer"] = answer.map { $0 as Any } ?? NSNull()
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return false }
+        return (try? await call("POST", query: [URLQueryItem(name: "canvas", value: "1")], body: data, timeout: 20)) != nil
+    }
+
     func transcribe(_ id: UUID, engine: TranscriptionEngine) async throws {
         _ = try await call("POST", query: [URLQueryItem(name: "transcribe", value: "1")],
                            body: try JSONSerialization.data(withJSONObject: ["id": id.uuidString, "engine": engine.rawValue]))

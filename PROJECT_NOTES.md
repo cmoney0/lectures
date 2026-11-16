@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
 Changes since then:
+- Canvas count card at the top of Materials reviews (count + Yes / No on unsure sentences, saved to LifeOS; hides the plain "Canvas count" section) (Colby via School HQ, 2026-11-16).
 - Live Activity buttons react instantly: Pause / Play pulse (bloom, then a ring draws round and away, like the LifeOS habit logger); Stop pulses, the label turns "Saving lecture...", then "Saved - sending to Claude" with a check for ~2 s before it goes away (Colby via School HQ, 2026-11-14).
 
 ## 2026-11-05 - v1 app
@@ -315,4 +316,14 @@ Changes since then:
 
 ### Why
 - Colby (via School HQ, for all sessions).
+
+## 2026-11-16 - Canvas count (Materials lectures)
+
+### What Changed
+- Review JSON `canvasCount` {count, sure[], unsure[{at,text,heard,answer}]} + a first section "Canvas count: N (+k to check)" so the current build shows it without an update (REVIEWER.md rule for every Materials lecture).
+- Backfilled: Materials 11/9 = 7 (+1 to check, 27:56 "I put this on campus"), 11/11 = 9 (+1, 46:38 "figure, can't..."), 11/13 = 12 (6:17 "campus" counted per Colby; the two on-device spots marked no; +1 to check: 0:00 "upload it by, uh, on time" - he counted 13 live), 11/16 = 13 (all clear).
+- App (next build): `LectureReview.CanvasCount`; `CanvasCountCard` at the top of the Review tab - big count, "k to check", each unsure sentence with tap-to-hear time, Yes / No pills (tap again to undo), counts live; `LifeOSClient.answerCanvas` -> LifeOS `POST /api/lectures?canvas=1` (lifeos #817), which recounts and rewrites the section.
+
+### Tests/Verification
+- No CI (manual-only). Code reviewed by hand; compiles at the next approved build.
 
