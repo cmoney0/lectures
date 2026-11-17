@@ -361,3 +361,8 @@ Changes since then:
 ### Tests/Verification
 - No CI; reviewed by hand (memberwise init order checked). Compiles at his next Cmd-R / lectures-tf.
 
+## 2026-11-17 - Reviewer asks Colby through the LifeOS Questions inbox
+
+### What Changed
+- REVIEWER.md step 7: questions only Colby can answer go through `public.hq_ask(question, options, 'Recording', context)` (pushes to his phone; answers come back via School HQ). One decision per question, no test calls.
+
