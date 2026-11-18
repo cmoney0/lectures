@@ -228,6 +228,7 @@ enum Pipeline {
             let key = row.id.lowercased()
             seen.insert(key)
             let lecture: Lecture
+            var fresh = false
             if let local = byId[key] {
                 lecture = local
                 // never touch a lecture this device is still recording or sending
@@ -239,10 +240,11 @@ enum Pipeline {
                 lecture.status = .ready
                 lecture.uploadedAt = .now
                 context.insert(lecture)
+                fresh = true
             }
             if let t = row.transcript, !lecture.hasAudio || lecture.transcript.isEmpty { lecture.transcript = t }
             if let d = row.durationSec, d > 0, !lecture.hasAudio { lecture.durationSec = d }
-            apply(row, to: lecture)
+            apply(row, to: lecture, fresh: fresh)
         }
         // copies of lectures deleted on another device (only ones without audio here)
         let window = Date().addingTimeInterval(-110 * 86_400)
@@ -253,7 +255,11 @@ enum Pipeline {
         try? context.save()
     }
 
-    private static func apply(_ row: LifeOSClient.ServerLecture, to lecture: Lecture) {
+    /// `fresh`: the lecture was just copied down from LifeOS (an iPad's first
+    /// sync) - its review isn't "new", so no badge.
+    private static func apply(_ row: LifeOSClient.ServerLecture, to lecture: Lecture, fresh: Bool = false) {
+        let wasReady = lecture.reviewStatus == .ready
+        let oldVersions = lecture.reviewVersions.count
         if let course = row.course, !course.isEmpty { lecture.courseName = course }
         if let cid = row.courseId, !cid.isEmpty { lecture.courseId = cid }
         if let short = row.courseShort, !short.isEmpty { lecture.courseShort = short }
@@ -265,6 +271,11 @@ enum Pipeline {
         }
         if let versions = row.reviews, !versions.isEmpty, let data = try? JSONEncoder().encode(versions) {
             lecture.reviewVersionsJSON = String(data: data, encoding: .utf8)
+        }
+        // a review just finished, or a newer version arrived: badge it until opened
+        if !fresh, row.review != nil, lecture.reviewStatus == .ready,
+           !wasReady || (row.reviews?.count ?? 0) > oldVersions {
+            lecture.reviewUnseen = true
         }
     }
 

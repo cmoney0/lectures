@@ -81,7 +81,8 @@ struct HomeView: View {
                     }
                     }
                 } header: {
-                    ClassHeader(name: course, count: items.count, open: expanded.contains(course)) { toggle(course) }
+                    ClassHeader(name: course, count: items.count, open: expanded.contains(course),
+                                hasNew: items.contains { $0.reviewUnseen }) { toggle(course) }
                 }
             }
         }
@@ -256,6 +257,11 @@ struct ReviewRow: View {
                     .font(.m(12)).foregroundStyle(Theme.sub)
             }
             Spacer()
+            if lecture.reviewUnseen {
+                Text("New").font(.m(11, .heavy)).foregroundStyle(Color.white)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Theme.accent, in: Capsule())
+            }
             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.sub)
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
@@ -268,6 +274,8 @@ struct ClassHeader: View {
     let name: String
     let count: Int
     let open: Bool
+    /// A new review inside: a theme-color dot so a collapsed class still shows it.
+    var hasNew = false
     var toggle: () -> Void
 
     var body: some View {
@@ -277,6 +285,7 @@ struct ClassHeader: View {
                     .font(.system(size: 12, weight: .bold))
                     .rotationEffect(.degrees(open ? 90 : 0))
                 Text(name).font(.m(16, .heavy)).foregroundStyle(Theme.text)
+                if hasNew { Circle().fill(Theme.accent).frame(width: 8, height: 8) }
                 Spacer()
                 Text("\(count)").font(.m(13, .bold)).foregroundStyle(Theme.sub)
                     .padding(.horizontal, 8).padding(.vertical, 2)

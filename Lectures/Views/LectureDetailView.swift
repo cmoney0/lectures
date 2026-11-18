@@ -38,8 +38,9 @@ struct LectureDetailView: View {
                     Picker("View", selection: $tab) {
                         if review?.guide != nil { Text("Guide").tag(4) }
                         Text("Review").tag(0)
-                        Text("Cards").tag(1)
-                        Text("Quiz").tag(2)
+                        // sermons have no cards / quiz (REVIEWER.md sermon mode)
+                        if !(review?.flashcards ?? []).isEmpty { Text("Cards").tag(1) }
+                        if !(review?.quiz ?? []).isEmpty { Text("Quiz").tag(2) }
                         Text("Transcript").tag(3)
                     }
                     .pickerStyle(.segmented)
@@ -61,6 +62,7 @@ struct LectureDetailView: View {
             ToolbarItem(placement: .topBarTrailing) { menu }
         }
         .onAppear {
+            if lecture.reviewUnseen { lecture.reviewUnseen = false; try? context.save() }
             // the iPad opens straight into the in-depth guide when there is one
             if review?.guide != nil && UIDevice.current.userInterfaceIdiom == .pad { tab = 4 }
         }

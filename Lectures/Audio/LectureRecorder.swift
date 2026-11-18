@@ -213,6 +213,9 @@ final class LectureRecorder {
         await endActivity(saved: true)
         stopping = false
         tap = nil
+        // stopped from the Lock Screen: don't leave the (now empty) recording
+        // screen up for when the app opens (Colby, 2026-11-17)
+        if !askForOptions { showRecorder = false }
         self.pipeline = nil
         current = nil
         isPaused = false

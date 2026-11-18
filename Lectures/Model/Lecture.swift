@@ -34,6 +34,9 @@ final class Lecture {
     /// Every review version from LifeOS ([ReviewVersion], newest first).
     var reviewVersionsJSON: String?
     var reviewError: String?
+    /// A review (or a new version) arrived and hasn't been opened yet: the
+    /// theme-color "New" badge on Home (Colby, 2026-11-17).
+    var reviewUnseen: Bool = false
 
     init(title: String, recordedAt: Date = .now, id: UUID = UUID()) {
         self.id = id

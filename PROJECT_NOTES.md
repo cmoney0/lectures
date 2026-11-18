@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
 Changes since then:
+- Stopping from the Live Activity no longer leaves the recording screen up when you open the app; a theme-color "New" badge on Home for reviews you haven't opened (dot on the class header when collapsed); Cards / Quiz tabs hidden when a review has none (sermons) (Colby via HQ, 2026-11-17).
 - Lock Screen Live Activity uses the theme color (Claude orange) for the recording dot, Stop button and its pulse; the Dynamic Island stays red (Colby via HQ, 2026-11-16).
 - Canvas count card at the top of Materials reviews (count + Yes / No on unsure sentences, saved to LifeOS; hides the plain "Canvas count" section) (Colby via School HQ, 2026-11-16).
 - Live Activity buttons react instantly: Pause / Play pulse (bloom, then a ring draws round and away, like the LifeOS habit logger); Stop pulses, the label turns "Saving lecture...", then "Saved - sending to Claude" with a check for ~2 s before it goes away (Colby via School HQ, 2026-11-14).
@@ -365,4 +366,16 @@ Changes since then:
 
 ### What Changed
 - REVIEWER.md step 7: questions only Colby can answer go through `public.hq_ask(question, options, 'Recording', context)` (pushes to his phone; answers come back via School HQ). One decision per question, no test calls.
+
+## 2026-11-17 - Sermons, New badge, stuck recording screen
+
+### What Changed
+- Sermon mode (REVIEWER.md): Church / SALT recordings get course_short "Sermon", a one-line `message`, 7 daily `quotes` (first section "To live by this week"), `songs` before / after (from lyrics, when he records the worship set), no quiz / cards / key terms. The 11/17 SALT sermon was converted. LifeOS `GET /api/lectures?quote=1` (lifeos #892) gives the day's quote for the home title block (Dashboard session wiring it).
+- App (next build):
+  - `LectureRecorder.stop`: a Lock Screen stop sets `showRecorder = false`, so opening the app shows Home, not an empty recording screen.
+  - `Lecture.reviewUnseen` (default false): set in `Pipeline.apply` when a review turns ready or a new version arrives (not for lectures just copied down on first sync); cleared when the lecture opens. Home row shows a "New" capsule in the accent color; the class header shows an accent dot.
+  - Lecture detail hides the Cards / Quiz tabs when the review has none.
+
+### Tests/Verification
+- No CI; reviewed by hand (memberwise init order, conditions, SwiftData default). Compiles at his next Cmd-R / lectures-tf.
 
