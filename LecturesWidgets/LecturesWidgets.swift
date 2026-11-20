@@ -31,8 +31,8 @@ struct LectureLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LectureActivityAttributes.self) { context in
             LockScreenView(state: context.state)
-                .activityBackgroundTint(LectureColors.bg)
-                .activitySystemActionForegroundColor(LectureColors.text)
+                .modifier(LockGlass())
+                .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
             let mode = Mode(state: context.state)
             return DynamicIsland {
@@ -80,6 +80,21 @@ private extension LiveActivityMode {
     }
 }
 
+/// The Lock Screen card is see-through like LifeOS's (Colby, 2026-11-20: "make the
+/// recording live activities clear"): a clear tint + a light veil so the wallpaper
+/// shows through but text still reads; system label colours for text. Reduce
+/// Transparency gets a near-solid card. The Dynamic Island stays black (iOS draws it).
+private struct LockGlass: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        content
+            .background((scheme == .dark ? Color.black : Color.white).opacity(reduceTransparency ? 0.85 : 0.22))
+            .activityBackgroundTint(Color.clear)
+    }
+}
+
 /// The red recording dot (gray when paused, hollow when stopped).
 private struct RecDot: View {
     let mode: Mode
@@ -109,7 +124,7 @@ private struct LockScreenView: View {
             RecDot(mode: mode, size: 12, live: LectureColors.accent)
             Text(mode.lockScreenText)
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .foregroundStyle(mode == .recording ? LectureColors.text : LectureColors.sub)
+                .foregroundStyle(mode == .recording ? Color.primary : Color.secondary)
                 .lineLimit(1)
             Spacer()
             if mode.showsControls { Buttons(state: state, paused: mode == .paused, stopColor: LectureColors.accent) }
@@ -139,7 +154,7 @@ private struct Buttons: View {
             }
             .tint(LectureColors.sub)
             .background {
-                LectureTapRing(shape: Circle(), step: state.tap.step("pause"), color: LectureColors.text)
+                LectureTapRing(shape: Circle(), step: state.tap.step("pause"), color: .primary)
                     .frame(width: size, height: size)
             }
             Button(intent: StopLectureIntent()) {

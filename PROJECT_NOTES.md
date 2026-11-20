@@ -38,6 +38,7 @@ Durable memory for every Claude session. Newest entries at the bottom of each se
 Last TestFlight build: **34** (cd9aa24, 2026-11-11, approved by Colby: "Okay build"). Shipped since build 24: review versions dropdown, AssemblyAI by default (Deepgram removed), Live Activity says "Recording stopped" only when LifeOS hears nothing for 75 s (push-driven, first Lectures build with Push Notifications), Settings > Last recording diagnostics, first unit tests.
 
 Changes since then:
+- Lock Screen Live Activity is clear glass like LifeOS's (clear tint + light veil, system text colours; Reduce Transparency = near solid); the Dynamic Island stays black (Colby via HQ, 2026-11-20).
 - Stopping from the Live Activity no longer leaves the recording screen up when you open the app; a theme-color "New" badge on Home for reviews you haven't opened (dot on the class header when collapsed); Cards / Quiz tabs hidden when a review has none (sermons) (Colby via HQ, 2026-11-17).
 - Lock Screen Live Activity uses the theme color (Claude orange) for the recording dot, Stop button and its pulse; the Dynamic Island stays red (Colby via HQ, 2026-11-16).
 - Canvas count card at the top of Materials reviews (count + Yes / No on unsure sentences, saved to LifeOS; hides the plain "Canvas count" section) (Colby via School HQ, 2026-11-16).
@@ -378,4 +379,15 @@ Changes since then:
 
 ### Tests/Verification
 - No CI; reviewed by hand (memberwise init order, conditions, SwiftData default). Compiles at his next Cmd-R / lectures-tf.
+
+## 2026-11-20 - Lock Screen Live Activity: clear glass
+
+### What Changed
+- `LecturesWidgets/LecturesWidgets.swift`: a `LockGlass` modifier (copied from LifeOS #934 / #939) replaces the dark `activityBackgroundTint`: clear tint + a 22% black / white veil by colour scheme (85% with Reduce Transparency). Lock Screen text uses `.primary` / `.secondary`, the system action colour `.primary`; the accent dot / Stop keep the theme colour. Dynamic Island unchanged.
+
+### Why
+- Colby: "make the recording live activities clear" (LifeOS's went clear 2026-11-20).
+
+### Tests/Verification
+- No CI; reviewed by hand. Compiles at his next Cmd-R / lectures-tf.
 
