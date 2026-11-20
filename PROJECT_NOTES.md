@@ -391,3 +391,15 @@ Changes since then:
 ### Tests/Verification
 - No CI; reviewed by hand. Compiles at his next Cmd-R / lectures-tf.
 
+## 2026-11-20 - Builds always use the latest main (Cmd-R pull + lectures alias)
+
+### What Changed
+- `scripts/pull-latest.sh` + a Lectures scheme pre-action (project.yml): Cmd-R pulls main first and regenerates the project when files were added / removed or project.yml changed (log /tmp/lectures-pull.log). Copied from LifeOS.
+- `scripts/regenerate.sh` (the `lectures` alias) pulls main before generating.
+
+### Why
+- Colby built straight to his phone and the clear Lock Screen card didn't show - his clone (from 11/16) didn't have the 11/16-11/20 changes; nothing pulled.
+
+### Tests/Verification
+- `sh -n` on both scripts; first real run is his. One-time: run `lectures` once so the new pre-action is in the generated project.
+

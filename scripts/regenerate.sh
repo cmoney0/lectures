@@ -3,11 +3,14 @@
 # isn't committed - XcodeGen builds it from project.yml. The Apple Team ID
 # comes from ~/.lifeos-team-id (the same file LifeOS's lifeos-tf saves), so
 # signing is set up without picking the team in Xcode.
-#   sh ~/lectures/scripts/regenerate.sh        (alias: lectures)
+#   sh ~/lectures/scripts/regenerate.sh        (alias: lectures - pulls main first)
 set -e
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# always build the latest main (skipped when offline or with local edits)
+git pull --ff-only --quiet 2>/dev/null && echo "Up to date with main ($(git rev-parse --short HEAD))" || echo "  (pull skipped - building what's here)"
 
 if [ -z "${LECTURES_TEAM_ID:-}" ] && [ -f "$HOME/.lifeos-team-id" ]; then
   LECTURES_TEAM_ID="$(tr -d '[:space:]' < "$HOME/.lifeos-team-id")"

@@ -110,6 +110,12 @@ schemes:
     build:
       targets:
         Lectures: all
+      # Cmd-R gets the latest main first (2026-11-20, Colby). Local Macs only:
+      # the script exits at once on CI.
+      preActions:
+        - name: Pull latest main
+          script: sh "$SRCROOT/scripts/pull-latest.sh"
+          settingsTarget: Lectures
   LecturesTests:
     build:
       targets:
